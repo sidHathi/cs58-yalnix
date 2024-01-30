@@ -13,8 +13,11 @@
       - [Interprocess Communication](./src/syscall_handlers/ipc.c)
       - [Synchronization Function Headers](./src/syscall_handlers/synchronization.h)
       - [Synchronization](./src/syscall_handlers/synchronization.c)
-    - [Trap Handler Function Header](./src/trap_handler.h)
-    - [Trap Handler](./src/trap_handler.c)
+    - [Trap Kernel Handler Function Headers](./src/trap_kernel_handler.h)
+    - [Trap Kernel Handler](./src/trap_kernel_handler.c)
+    - [Kernel Brk and Start Function Headers](./src/kernel.h)
+    - [Kernel Brk and Start](./src/kernel.c)
+
   - [Testing](./tests/)
     - TBD
 
