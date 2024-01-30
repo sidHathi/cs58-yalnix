@@ -4,35 +4,26 @@
 #include <hardware.h>
 #include <util/queue.h>
 
-// global definition for free frame queue pointer -> actual queue lives in kernel heap
-queue_t* free_frame_queue;
-
-// global definitions for region 1 and 0 page tables -> stored in kernel data
-pte_t region_0_pages[NUM_VPN];
-pte_t region_1_pages[NUM_VPN];
-
-// boolean that stores whether virtual memory is enabled
-unsigned int virtual_mem_enabled = 0;
-
-// number of bits that kernel break has been moved upwards from origin
-unsigned long kernel_brk_offset = 0;
-
-// queue that stores pointers to pcbs of ready processes
-queue_t* process_ready_queue;
-
-// queue htat stores pointers to pcbs of blocked processes
-queue_t* process_blocked_queue;
-
-// queue htat stores pointers to pcbs of blocked processes
-queue_t* dead_queue;
-
 int
 SetKernelBrk(void* addr)
 {
   // calculate offset from original brk
   // determine whether new address is valid
+    // if not valid, return an error, traceprint
+  // if virtual memory enabled:
+    // calculate out how many new frames need to be enabled
+    // for each one that doesn't have a frame, pop a random frame
+    // from the global free frame queue and assign it to that page
+    // set the appropriate permissions for the newly valid page
+  // otherwise:
+    // MANUALLY ASSIGN FRAME NUMBERS to the pages between current and new kernel brk
+    // each new valid frame should map to the same frame number
+    // in physical memory
+    // if the queue contains that frame, remove it
+  // modify the page table to reflect page-> frame mapping
   // set hardware register for kernel break
   // set global for kernel_brk_offset
+  // return 0 if succesful
 }
 
 void
@@ -50,14 +41,18 @@ KernelStart(const char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // restricted read and write permissions
   // Frames below _first_kernel_text_page should have restricted write permissions
   // the rest of the pages should not be valid for this region
+  // load page table address into appropriate register (REG_PTBR0)
 
   // 3. Set up page table for region 1
   // Involves looping to add each pte_t struct to the array
   // Each frame should have valid bit equal to zero and point to frame zero except one near the top of the address space for the user's stack
+  // load page table address into appropriate register (REG_PTBR1)
   
-  // 4. Enbale virtual memory by switching the register value in hardware
+  // 4. Enbale virtual memory by switching the register value in hardware + flush the TLB
 
   // 5. Allocate ready, blocked, and dead queues using queue_new functions
 
-  // 6. Load the idle process and start the scheduler
+  // 6. Allocate the interrupt vector and put the address in the appropriate register
+
+  // 7. Load the idle process and start the scheduler
 }
