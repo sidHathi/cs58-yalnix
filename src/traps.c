@@ -47,7 +47,10 @@ void TrapMathHandler(UserContext* user_context) {
 // Trap handler for TRAP_TTY_RECEIVE
 void TrapTTYReceiveHandler(UserContext* user_context) {
   // PSEUDOCODE
-  // TODO
+  // Get terminal index from user_context.code
+  // Use hardware operation TtyReceive to get input from terminal.
+  // Copy terminal value into tty_buffers[user_context.code]
+  // This value is available for user process to copy via TtyRead
 }
 
 // Trap handler for TRAP_TTY_TRANSMIT
