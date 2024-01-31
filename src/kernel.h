@@ -4,6 +4,7 @@
 #include <yalnix.h>
 #include <hardware.h>
 #include <util/queue.h>
+#include <pcb.h>
 
 // global definition for free frame queue pointer -> actual queue lives in kernel heap
 extern queue_t* free_frame_queue;
@@ -22,9 +23,24 @@ extern unsigned long kernel_brk_offset = 0;
 extern queue_t* process_ready_queue;
 
 // array stores pointers to pcbs of blocked processes PCBs
-extern void** process_blocked_arr;
+extern pcb_t** process_blocked_arr;
 
 // array that stores pointers to pcbs of dead processes
-extern void** process_dead_arr;
+extern pcb_t** process_dead_arr;
+
+// currently running process
+extern pcb_t* current_process;
+
+// Function passed into KernelContextSwitch to manage pcbs and kernel during process process switching
+KernelContext* KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p);
+
+// Function passed into KernelContextSwitch to clone current kernel context and stack into new process
+KernelContext* KCCopy(KernelContext* kc_in, void* new_pcb_p, void* not_used);
+
+// Should be called at the end of every clock trap
+void ScheduleNextProcess();
+
+// load a new program into an existing address space
+int LoadProgram(char *name, char *args[], pcb_t* proc);
 
 #endif /*!_kernel_h*/
