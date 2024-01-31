@@ -3,7 +3,10 @@
 
 #include <yalnix.h>
 #include <hardware.h>
-#include <util/queue.h>
+#include <datastructures.h>
+
+// Array of strings for kernel to store input from the terminals
+extern char* tty_buffers[NUM_TERMINALS];
 
 // global definition for free frame queue pointer -> actual queue lives in kernel heap
 extern queue_t* free_frame_queue;
