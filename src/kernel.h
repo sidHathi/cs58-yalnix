@@ -1,3 +1,5 @@
+#include "datastructures.h"
+
 #ifndef _kernel_h
 #define _kenel_h
 
@@ -9,7 +11,7 @@
 extern char* tty_buffers[NUM_TERMINALS];
 
 // global definition for free frame queue pointer -> actual queue lives in kernel heap
-extern queue_t* free_frame_queue;
+extern Queue* free_frame_queue;
 
 // global definitions for region 1 and 0 page tables -> stored in kernel data
 extern pte_t region_0_pages[VMEM_REGION_SIZE/PAGESIZE];
@@ -22,7 +24,7 @@ extern unsigned int virtual_mem_enabled = 0;
 extern unsigned long kernel_brk_offset = 0;
 
 // queue that stores pointers to pcbs of ready processes
-extern queue_t* process_ready_queue;
+extern Queue* process_ready_queue;
 
 // array stores pointers to pcbs of blocked processes PCBs
 extern void** process_blocked_arr;
