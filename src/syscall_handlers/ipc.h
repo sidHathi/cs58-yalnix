@@ -6,7 +6,7 @@
 *
 * Create a new pipe; save its identifier at *pipe idp. In case of any error, the value ERROR is returned.
 */
-int KernelPipeInit(int* pipe_idp);
+int PipeInitHandler(int* pipe_idp);
 
 
 /*
@@ -20,7 +20,7 @@ int KernelPipeInit(int* pipe_idp);
 * plen − len bytes in the pipe.
 * In case of any error, the value ERROR is returned. Otherwise, the return value is the number of bytes read.
 */
-int KernelPipeRead(int pipe_id, void* buf, int len);
+int PipeReadHandler(int pipe_id, void* buf, int len);
 
 
 /*
@@ -30,4 +30,4 @@ int KernelPipeRead(int pipe_id, void* buf, int len);
 * appended to the sequence of unread bytes currently in the pipe.) Return as soon as you get the bytes into the
 * buffer. In case of any error, the value ERROR is returned. Otherwise, return the number of bytes written.
 */
-int KernelPipeWrite(int pipe_id, void* buf, int len);
+int PipeWriteHandler(int pipe_id, void* buf, int len);

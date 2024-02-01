@@ -8,29 +8,24 @@
 // Source: https://www.geeksforgeeks.org/queue-linked-list-implementation/#
 
 // A linked list (LL) node to store a queue entry
-struct QNode {
-	int key;
-	struct QNode* next;
-};
+typedef struct qnode qnode_t;
 
 // The queue, front stores the front node of LL and rear
 // stores the last node of LL
-struct Queue {
-	struct QNode *front, *rear;
-};
+typedef struct queue queue_t;
 
 // A utility function to create a new linked list node.
-struct QNode* newNode(int k);
+qnode_t* newNode(int k);
 
 // A utility function to create an empty queue
 // Caller is responsible freeing Queue later.
 // Remember to free entries in Queue before freeing the Queue itself.
-struct Queue* createQueue();
+queue_t* createQueue();
 
 // The function to add a key k to q
-void enQueue(struct Queue* q, int k);
+void enQueue(queue_t* q, int k);
 
 // Function to remove a key from given queue q
-void deQueue(struct Queue* q);
+void deQueue(queue_t* q);
 
 #endif /*!_queue_h*/

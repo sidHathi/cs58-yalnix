@@ -2,7 +2,7 @@
 #include "../../../yalnix_framework/include/ykernel.h"
 
 
-int KernelFork(void) {
+int ForkHandler(void) {
 
   // create new child process and pcb for child process
 
@@ -18,7 +18,7 @@ int KernelFork(void) {
   return 0;
 }
 
-int KernelExec(char* filename, char** argvec, int argc) {
+int ExecHandler(char* filename, char** argvec, int argc) {
   
   // clear current process memory
   // execute filename argvec[1]...argvec[n]
@@ -26,7 +26,7 @@ int KernelExec(char* filename, char** argvec, int argc) {
   return 0;
 }
 
-void KernelExit(int status) {
+void ExitHandler(int status) {
   // clear necessary memory and free up regions of mem
   // throw error if error in cleanup
 
@@ -35,7 +35,7 @@ void KernelExit(int status) {
   return status;
 }
 
-int KernelWait(int *status_ptr) {
+int WaitHandler(int *status_ptr) {
   // unlock the lock of the status so that another process can use
   // get the PID and exit status returned by a child process of the calling program
   
@@ -54,14 +54,14 @@ int KernelWait(int *status_ptr) {
   return 0;
 }
 
-int KernelGetPid(void) {
+int GetPidHandler(void) {
   // find the pcb for this process
   // index into the pcb and find the where the PID is stored- don't know the exact location yet
   // return pid
   return 0;
 }
 
-int KernelBrk(void* addr) {
+int BrkHandler(void* addr) {
   // find the lowest point of memory in the stack
   // set this point to addr
   // note that this pointshould be rounded up to the next multiple of PAGESIZE bytes.
@@ -74,7 +74,7 @@ int KernelBrk(void* addr) {
   return 0;
 }
 
-int KernelDelay(int clock_ticks) {
+int DelayHandler(int clock_ticks) {
   // sleep for the number of clock ticks provided on this current process only
   // return and allow process to continue after the delay
   // on success should return 0

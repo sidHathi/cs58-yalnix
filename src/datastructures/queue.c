@@ -5,27 +5,42 @@
 // Generic FIFO queue
 // Source: https://www.geeksforgeeks.org/queue-linked-list-implementation/#
 
-struct QNode* newNode(int k)
+// A linked list (LL) node to store a queue entry
+typedef struct qnode {
+	int key;
+	qnode_t* next;
+} qnode_t;
+
+// The queue, front stores the front node of LL and rear
+// stores the last node of LL
+typedef struct queue {
+	qnode_t *front, *rear;
+} queue_t;
+
+qnode_t*
+newNode(int k)
 {
-	struct QNode* temp
-		= (struct QNode*)malloc(sizeof(struct QNode));
+	qnode_t* temp
+		= (qnode_t*)malloc(sizeof(qnode_t));
 	temp->key = k;
 	temp->next = NULL;
 	return temp;
 }
 
-struct Queue* createQueue()
+queue_t*
+createQueue()
 {
-	struct Queue* q
-		= (struct Queue*)malloc(sizeof(struct Queue));
+	queue_t* q
+		= (queue_t*)malloc(sizeof(queue_t));
 	q->front = q->rear = NULL;
 	return q;
 }
 
-void enQueue(struct Queue* q, int k)
+void
+enQueue(queue_t* q, int k)
 {
 	// Create a new LL node
-	struct QNode* temp = newNode(k);
+	qnode_t* temp = newNode(k);
 
 	// If queue is empty, then new node is front and rear
 	// both
@@ -39,7 +54,8 @@ void enQueue(struct Queue* q, int k)
 	q->rear = temp;
 }
 
-void deQueue(struct Queue* q)
+void
+deQueue(queue_t* q)
 {
 	// If queue is empty, return NULL.
 	if (q->front == NULL)

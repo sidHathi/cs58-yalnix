@@ -3,7 +3,7 @@
 
 
 
-int KernelTtyRead(int tty_id, void* buf, int len) {
+int TtyReadHandler(int tty_id, void* buf, int len) {
   // read input from terminal, set it to buf
   // can only set the max number of bytes <= len from tty_id
   // if there is enough bytes readily availible, set and return
@@ -16,7 +16,7 @@ int KernelTtyRead(int tty_id, void* buf, int len) {
   return 0;
 }
 
-int KernelTyWrite(int tty_id, void* buf, int len) {
+int TtyWriteHandler(int tty_id, void* buf, int len) {
   // len is the length of the buffer
   // process blocked until all bytes are writted to tty_id
 
