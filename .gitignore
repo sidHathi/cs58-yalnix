@@ -49,3 +49,6 @@ data
 #vscode files
 .vscode
 .vscode/*
+
+# Local readme
+MASTER_OUTLINE.md

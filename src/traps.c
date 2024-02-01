@@ -56,7 +56,8 @@ void TrapTTYReceiveHandler(UserContext* user_context) {
 // Trap handler for TRAP_TTY_TRANSMIT
 void TrapTTYTransmitHandler(UserContext* user_context) {
   // PSEUDOCODE
-  // TODO
+  // Complete blocked process that started this terminal output
+  // If there is a next terminal output, display it
 }
 
 // NO TrapDiskHandler REQUIRED FOR UNDERGRAD YALNIX

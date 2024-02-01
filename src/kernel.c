@@ -2,8 +2,8 @@
 #include <ykernel.h>
 #include <yuser.h>
 #include <hardware.h>
-#include <util/queue.h>
-#include <kernel.h>
+#include <datastructures/queue.h>
+#include "kernel.h"
 #include <ykernel.h>
 #include <load_info.h>
 #include <fcntl.h>
@@ -184,7 +184,7 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
    * Compute the new stack pointer, leaving INITIAL_STACK_FRAME_SIZE bytes
    * reserved above the stack pointer, before the arguments.
    */
-  cp2 = (caddr_t)cpp - INITIAL_STACK_FRAME_SIZE;
+  cp2 = (void*)cpp - INITIAL_STACK_FRAME_SIZE;
 
 
 
