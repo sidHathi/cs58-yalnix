@@ -5,10 +5,10 @@
 #include <hardware.h>
 #include "queue.h"
 
-typedef struct cvar {
-  int cvar_id; // unique identifier
-  int owner; // pid of process using cvar
-  Queue* blocked; // FIFO queue of PCB's waiting on cvar
-} cvar_t;
+typedef struct cvar cvar_t;
+
+cvar_t* cvar_new(int cvar_id, int owner);
+
+void cvar_free(cvar_t* cvar);
 
 #endif /*!_cvar_h*/

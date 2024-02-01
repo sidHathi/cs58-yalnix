@@ -5,10 +5,9 @@
 #include <yalnix.h>
 #include <hardware.h>
 
-typedef struct lock {
-  int lock_id; // unique identifier
-  int owner; // pid of process controlling lock, -1 if unlocked
-  Queue* blocked; // FIFO queue of PCB's waiting for lock
-} lock_t;
+typedef struct lock lock_t;
+
+// creates a new lock with no owner
+lock_t* lock_new(int lock_id);
 
 #endif /*!_lock_h*/

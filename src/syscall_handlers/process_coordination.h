@@ -11,7 +11,7 @@
 * the process ID of the new (child) process, while the value returned in the child is 0. If, for any reason, the new
 * process cannot be created, this syscall instead returns the value ERROR to the calling process.
 */
-int KernelFork(void);
+int ForkHandler(void);
 
 
 /*
@@ -36,7 +36,7 @@ int KernelFork(void);
 * On failure, if the calling process has not been destroyed already, this call returns ERROR and does not run the
 * new program. 
 */
-int KernelExec(char* filename, char** argvec);
+int ExecHandler(char* filename, char** argvec);
 
 
 /*
@@ -48,7 +48,7 @@ int KernelExec(char* filename, char** argvec);
 * When a process exits or is aborted, if it has children, they should continue to run normally, but they will no
 * longer have a parent.
 */
-void KernelExit(int status);
+void ExitHandler(int status);
 
 
 /*
@@ -64,7 +64,7 @@ void KernelExit(int status);
 * On success, the process ID of the child process is returned. If status ptr is not null, the exit status of the
 * child is copied to that address.
 */
-int KernelWait(int *status_ptr);
+int WaitHandler(int *status_ptr);
 
 
 /*
@@ -72,7 +72,7 @@ int KernelWait(int *status_ptr);
 *
 * Returns the process ID of the calling process.
 */
-int KernelGetPid(void);
+int GetPidHandler(void);
 
 
 /*

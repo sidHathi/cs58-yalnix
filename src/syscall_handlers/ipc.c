@@ -1,7 +1,7 @@
 #include "../../../yalnix_framework/include/yalnix.h"
 #include "../../../yalnix_framework/include/ykernel.h"
 
-int KernelPipeInit(int* pipe_idp) {
+int PipeInitHandler(int* pipe_idp) {
 
   // initialize pipe
   // if error return ERROR
@@ -11,7 +11,7 @@ int KernelPipeInit(int* pipe_idp) {
   return 0;
 }
 
-int KernelPipeRead(int pipe_id, void* buf, int len) {
+int PipeReadHandler(int pipe_id, void* buf, int len) {
   // find pipe
   // read len of pipe bytes into the users buffer
   // buf + len = next free space after pipe is added
@@ -23,7 +23,7 @@ int KernelPipeRead(int pipe_id, void* buf, int len) {
   return 0;
 }
 
-int KernelPipeWrite(int pipe_id, void* buf, int len) {
+int PipeWriteHandler(int pipe_id, void* buf, int len) {
   // find the pipe
   // write the number of bytes (len) in buffer to the pipe
   // going to want to use append here, as the pipe works in FIFO order
