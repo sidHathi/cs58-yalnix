@@ -6,7 +6,7 @@
 *
 * Create a new lock; save its identifier at *lock idp. In case of any error, the value ERROR is returned.
 */
-int KernelLockInit(int* lock_ipd);
+int LockInitHandler(int* lock_ipd);
 
 
 /*
@@ -14,7 +14,7 @@ int KernelLockInit(int* lock_ipd);
 *
 * Acquire the lock identified by lock id. In case of any error, the value ERROR is returned.
 */
-int KernelAcquire(int lock_id);
+int AcquireLockHandler(int lock_id);
 
 
 /*
@@ -23,7 +23,7 @@ int KernelAcquire(int lock_id);
 * Release the lock identified by lock id. The caller must currently hold this lock. In case of any error, the value
 * ERROR is returned.
 */
-int KernelRelease(int lock_id);
+int ReleaseLockHandler(int lock_id);
 
 
 /*
@@ -32,7 +32,7 @@ int KernelRelease(int lock_id);
 * Create a new condition variable; save its identifier at *cvar idp. In case of any error, the value ERROR is
 * returned.
 */
-int KernelCvarInit(int* cvar_ipd);
+int CvarInitHandler(int* cvar_ipd);
 
 
 /*
@@ -41,7 +41,7 @@ int KernelCvarInit(int* cvar_ipd);
 * Signal the condition variable identified by cvar id. (Use Mesa-style semantics.) In case of any error, the value
 * ERROR is returned.
 */
-int KernelCvarSignal(int cvar_ip);
+int CvarSignalHandler(int cvar_ip);
 
 
 /*
@@ -50,7 +50,7 @@ int KernelCvarSignal(int cvar_ip);
 * Broadcast the condition variable identified by cvar id. (Use Mesa-style semantics.) In case of any error, the
 * value ERROR is returned.
 */
-int KernelCvarBroadcast(int cvar_id);
+int CvarBroadcastHandler(int cvar_id);
 
 
 /*
@@ -62,7 +62,7 @@ int KernelCvarBroadcast(int cvar_id);
 * When the lock is finally acquired, the call returns to userland.
 * In case of any error, the value ERROR is returned.
 */
-int KernelCvarWait(int cvar_id, int lock_id);
+int CvarWaitHandler(int cvar_id, int lock_id);
 
 
 /*
@@ -72,4 +72,4 @@ int KernelCvarWait(int cvar_id, int lock_id);
 * any error, the value ERROR is returned.
 * If you feel additional specification is necessary to handle unusual scenarios, then create and document it.
 */
-int KernelReclaim(int id);
+int ReclaimHandler(int id);

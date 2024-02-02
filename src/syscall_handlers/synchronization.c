@@ -1,7 +1,7 @@
 #include "../../../yalnix_framework/include/yalnix.h"
 #include "../../../yalnix_framework/include/ykernel.h"
 
-int KernelLockInit(int* lock_ipd) {
+int LockInitHandler(int* lock_ipd) {
   /* 
   * STRUCT Lock
   * int owner
@@ -16,7 +16,7 @@ int KernelLockInit(int* lock_ipd) {
   return 0;
 }
 
-int KernelAcquire(int lock_id) {
+int AcquireLockHandler(int lock_id) {
   // use lock_id to locate lock in memory
   // check if there is a current owner of the lock
   // if there is, append user to the queue
@@ -25,7 +25,7 @@ int KernelAcquire(int lock_id) {
   return 0;
 }
 
-int KernelRelease(int lock_id) {
+int ReleaseLockHandler(int lock_id) {
   // verify that the lock exists
   // find the lock
   // if the current process is the owner of the lock
@@ -38,7 +38,7 @@ int KernelRelease(int lock_id) {
   return 0;
 }
 
-int KernelCvarInit(int* cvar_ipd) {
+int CvarInitHandler(int* cvar_ipd) {
   /* 
   * STRUCT cvar
   * int owner
@@ -54,7 +54,7 @@ int KernelCvarInit(int* cvar_ipd) {
   return 0;
 }
 
-int KernelCvarSignal(int cvar_ip) {
+int CvarSignalHandler(int cvar_ip) {
   // locate cvar based on the cvar_ip
   // if its invalid, throw error
   // find current process
@@ -68,7 +68,7 @@ int KernelCvarSignal(int cvar_ip) {
   return 0;
 }
 
-int KernelCvarBroadcast(int cvar_id) {
+int CvarBroadcastHandler(int cvar_id) {
   // locate cvar based on the cvar_ip
   // if its invalid, throw error
   // find current process
@@ -83,7 +83,7 @@ int KernelCvarBroadcast(int cvar_id) {
   return 0;
 }
 
-int KernelCvarWait(int cvar_id, int lock_id) {
+int CvarWaitHandler(int cvar_id, int lock_id) {
   // cvar is the id of the svar that the process is waiting on
   // lock_id is the lock that its waiting on
 
@@ -100,7 +100,7 @@ int KernelCvarWait(int cvar_id, int lock_id) {
   return 0;
 }
 
-int KernelReclaim(int id) {
+int ReclaimHandler(int id) {
   // check if its a Lock, Cvar, or a Pipe
   // locate each one respectively
   // verify that they exist
