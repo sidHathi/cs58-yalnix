@@ -6,26 +6,22 @@
 
 // Generic FIFO queue
 // Source: https://www.geeksforgeeks.org/queue-linked-list-implementation/#
+// Modified to suit our needs
 
 // A linked list (LL) node to store a queue entry
 typedef struct qnode qnode_t;
 
-// The queue, front stores the front node of LL and rear
-// stores the last node of LL
+// Queue data structure
 typedef struct queue queue_t;
 
-// A utility function to create a new linked list node.
-qnode_t* newNode(int k);
-
 // A utility function to create an empty queue
-// Caller is responsible freeing Queue later.
-// Remember to free entries in Queue before freeing the Queue itself.
-queue_t* createQueue();
+// Caller is responsible freeing queue memory later.
+queue_t* queueCreate();
 
-// The function to add a key k to q
-void enQueue(queue_t* q, int k);
+// The function to add a new node to the queue
+void queuePush(queue_t* q, void* data);
 
-// Function to remove a key from given queue q
-int deQueue(queue_t* q);
+// Function to pop data from the head of the queue
+void* queuePop(queue_t* q)
 
 #endif /*!_queue_h*/
