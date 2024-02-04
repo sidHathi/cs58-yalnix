@@ -26,6 +26,6 @@ queue_t* createQueue();
 void enQueue(queue_t* q, int k);
 
 // Function to remove a key from given queue q
-void deQueue(queue_t* q);
+int deQueue(queue_t* q);
 
 #endif /*!_queue_h*/

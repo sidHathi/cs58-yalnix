@@ -10,9 +10,63 @@
 #include <unistd.h>
 #include <ctype.h>
 
+/**
+ * Helper function: iterates over page from the old top index
+ * to the new top index. checks to make sure each frame is not valid
+ * if the page is valid -> makes it not valid. If virtual memory is
+ * enabled, it adds each newly invalid frame to the free frames queue
+ * If virtual memory is not enabled, it marks the frame as not being
+ * used in the free_boot_frames array
+*/
+void
+shrink_heap_pages(int prev_top_page_idx, int new_top_page_idx)
+{
+  for (int i = prev_top_page_idx; i > new_top_page_idx; i --) {
+    if (!region_0_pages[i].valid) {
+      continue;
+    }
+    region_0_pages[i].valid = 0;
+    region_0_pages[i].prot = 0;
+
+    if (virtual_mem_enabled) {
+      enQueue(free_frame_queue, region_0_pages[i].pfn);
+    }
+  }
+}
+
+/**
+ * Helper function: In the case that virtual memory has not yet been 
+ * enabled, all pages below the new brk must be mapped one to one 
+ * with the frame number that equals the page index. In the case that
+ * virtual memory is enabled, the brk should be raised -> idk if
+*/
+void
+expand_heap_pages(int prev_top_page_idx, int new_top_page_idx)
+{
+  // loop from prev to new top page ++
+  // find a frame for each new page from the free frame queue
+  // But -> if virtual memory is not enabled -> take the frame
+  // that has the page number
+  // set the permissions for the page
+  // mark as valid
+  for (int i = prev_top_page_idx; i < new_top_page_idx; i ++) {
+    int frame_no;
+    if (virtual_mem_enabled) {
+      frame_no = deQueue(free_frame_queue);
+    } else {
+      frame_no = i; // figure out what to put here
+    }
+
+    region_0_pages[i].pfn = frame_no;
+    region_0_pages[i].valid = 1;
+    region_0_pages[i].prot = PROT_READ | PROT_WRITE;
+  }
+}
+
 int
 SetKernelBrk(void* addr)
 {
+  // IMPORTANT -> need to consider case where brk is shrinking
   // calculate offset from original brk
   // determine whether new address is valid
     // if not valid, return an error, traceprint
@@ -30,6 +84,30 @@ SetKernelBrk(void* addr)
   // set hardware register for kernel break
   // set global for kernel_brk_offset
   // return 0 if succesful
+
+  int curr_brk_page_idx = _orig_kernel_brk_page + kernel_brk_offset;
+  int suggested_brk_page_idx = UP_TO_PAGE(addr);
+  // check to make sure that the suggested brk is not below the original brk
+  // check to make sure that the suggested brk is not above the stack start page
+  // check to make sure that if the brk is shrinking, there's nothing in the pages that will now be above the brk
+  if (suggested_brk_page_idx < _orig_kernel_brk_page) {
+    TracePrintf(1, "attempting to set kernel brk below original brk");
+    return -1;
+  }
+
+  if (suggested_brk_page_idx > DOWN_TO_PAGE(KERNEL_STACK_BASE)) {
+    TracePrintf(1, "attempting to set kernel brk above kernel stack base");
+    return -1;
+  }
+
+  if (suggested_brk_page_idx < curr_brk_page_idx) {
+    shrink_heap_pages(curr_brk_page_idx, suggested_brk_page_idx);
+  } else {
+    expand_heap_pages(curr_brk_page_idx, suggested_brk_page_idx);
+  }
+  
+  kernel_brk_offset = _orig_kernel_brk_page + suggested_brk_page_idx;
+  return 0;
 }
 
 void

@@ -54,7 +54,7 @@ enQueue(queue_t* q, int k)
 	q->rear = temp;
 }
 
-void
+int
 deQueue(queue_t* q)
 {
 	// If queue is empty, return NULL.
@@ -62,7 +62,7 @@ deQueue(queue_t* q)
 		return;
 
 	// Store previous front and move front one node ahead
-	struct QNode* temp = q->front;
+	qnode_t* temp = q->front;
 
 	q->front = q->front->next;
 
@@ -70,5 +70,6 @@ deQueue(queue_t* q)
 	if (q->front == NULL)
 		q->rear = NULL;
 
-	free(temp);
+	return temp->key;
+	// free(temp);
 }

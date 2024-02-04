@@ -12,6 +12,9 @@ extern char* tty_buffers[NUM_TERMINALS];
 // global definition for free frame queue pointer -> actual queue lives in kernel heap
 extern queue_t* free_frame_queue;
 
+// before virtual memory is used, kernel will keep track of free region zero frames in this array
+extern unsigned int free_boot_frames[VMEM_REGION_SIZE/PAGESIZE];
+
 // global definitions for region 1 and 0 page tables -> stored in kernel data
 extern pte_t region_0_pages[VMEM_REGION_SIZE/PAGESIZE];
 extern pte_t region_1_pages[VMEM_REGION_SIZE/PAGESIZE];
