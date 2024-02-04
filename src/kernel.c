@@ -232,6 +232,10 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // Each frame should have valid bit equal to zero and point to frame zero except one near the top of the address space for the user's stack
   // load page table address into appropriate register (REG_PTBR1)
   init_page_tables();
+  WriteRegister(REG_PTBR0, (unsigned int)&region_0_pages);
+  WriteRegister(REG_PTLR0, VMEM_REGION_SIZE/PAGESIZE);
+  WriteRegister(REG_PTBR1, (unsigned int)&region_1_pages);
+  WriteRegister(REG_PTLR1, VMEM_REGION_SIZE/PAGESIZE);
   // 3.5: Add every frame that isn't mapped in the region 0 page table
   // to the free frames queue
   init_free_frame_queue();
