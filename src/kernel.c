@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <ctype.h>
 
+#define IN_NUM_KERNEL_HEAP_PAGES 10
+
 /**
  * Helper function: iterates over page from the old top index
  * to the new top index. checks to make sure each frame is not valid
@@ -111,11 +113,36 @@ SetKernelBrk(void* addr)
 }
 
 void
+init_page_tables()
+{
+  // for region 0 ->
+    // loop over frames
+    // check frame region
+    // if page is in kernel text ->
+      // mark it as valid with exec and read permissions
+    // if page is in kernel heap ->
+      // mark it as valid with read and write permissions
+    // if page is in kernel stack ->
+      // mark it as valid with read and write permissions
+    // otherwise ->
+      // mark it as invalid with no permissions
+  for (int i = 0; i < VMEM_REGION_SIZE/VMEM_NUM_REGION; i ++) {
+    int frame_region = 0;
+    // if ()
+  }
+
+  // for region 1 ->
+    // TEMPORARY:
+    // mark all pages as invalid with no premissions
+}
+
+void
 KernelStart(const char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
 {
   // 1. allocate and initialize free frame queue
   // SetKernelBrk to some point far enough above origin to fit the entire queue
   // every frame above _first_kernel_data_page til max virtual pages should be added as a free frame -> only kernel text and below are being used
+  free_frame_queue = createQueue();
   
   // 2. Set up page table for region 0
   // Involves looping to add each pte_t struct to the array
