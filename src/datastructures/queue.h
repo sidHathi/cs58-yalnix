@@ -22,6 +22,8 @@ queue_t* queueCreate();
 void queuePush(queue_t* q, void* data);
 
 // Function to pop data from the head of the queue
-void* queuePop(queue_t* q)
+void* queuePop(queue_t* q);
+
+// IMPORTANT: NEED FREE FUNCTION
 
 #endif /*!_queue_h*/

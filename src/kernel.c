@@ -10,8 +10,6 @@
 #include <unistd.h>
 #include <ctype.h>
 
-#define IN_NUM_KERNEL_HEAP_PAGES 10
-
 /**
  * Helper function: iterates over page from the old top index
  * to the new top index. checks to make sure each frame is not valid
@@ -31,7 +29,9 @@ shrink_heap_pages(int prev_top_page_idx, int new_top_page_idx)
     region_0_pages[i].prot = 0;
 
     if (virtual_mem_enabled) {
-      enQueue(free_frame_queue, region_0_pages[i].pfn);
+      int* page_loc = malloc(sizeof(int));
+      *page_loc = region_0_pages[i].pfn;
+      queuePush(free_frame_queue, page_loc);
     }
   }
 }
@@ -54,7 +54,7 @@ expand_heap_pages(int prev_top_page_idx, int new_top_page_idx)
   for (int i = prev_top_page_idx; i < new_top_page_idx; i ++) {
     int frame_no;
     if (virtual_mem_enabled) {
-      frame_no = deQueue(free_frame_queue);
+      frame_no = *(int*)queuePop(free_frame_queue);
     } else {
       frame_no = i; // figure out what to put here
     }
@@ -126,14 +126,69 @@ init_page_tables()
       // mark it as valid with read and write permissions
     // otherwise ->
       // mark it as invalid with no permissions
-  for (int i = 0; i < VMEM_REGION_SIZE/VMEM_NUM_REGION; i ++) {
+  for (int i = 0; i < VMEM_REGION_SIZE/PAGESIZE; i ++) {
     int frame_region = 0;
-    // if ()
+    if (i < _first_kernel_text_page) {
+      frame_region = 1;
+    } else if (i < _first_kernel_data_page) {
+      frame_region = 2;
+    } else if (i < _orig_kernel_brk_page + kernel_brk_offset) {
+      frame_region = 3;
+    } else if (i > KERNEL_STACK_BASE) {
+      frame_region = 4;
+    }
+
+    switch (frame_region) {
+      case 1:
+        region_0_pages[i].valid = 0;
+        region_0_pages[i].prot = 0;
+        break;
+      case 2:
+        region_0_pages[i].pfn = i;
+        region_0_pages[i].prot = PROT_EXEC | PROT_READ;
+        region_0_pages[i].valid = 1;
+        break;
+      case 3:
+        region_0_pages[i].pfn = i;
+        region_0_pages[i].prot = PROT_WRITE | PROT_READ;
+        region_0_pages[i].valid = 1;
+        break;
+      case 4:
+        region_0_pages[i].pfn = i;
+        region_0_pages[i].prot = PROT_WRITE | PROT_READ;
+        region_0_pages[i].valid = 1;
+        break;
+      default:
+        region_0_pages[i].valid = 0;
+        region_0_pages[i].prot = 0;
+        break;
+    }
   }
 
   // for region 1 ->
     // TEMPORARY:
     // mark all pages as invalid with no premissions
+  for (int i = 0; i < VMEM_REGION_SIZE/PAGESIZE; i ++) {
+    region_1_pages[i].valid = 0;
+    region_1_pages[i].prot = 0;
+  }
+}
+
+void
+init_free_frame_queue()
+{
+  // iterate over the number of possible frames
+  // check the corresponding page in the region 0 page table
+  // if it's not valid, add it to free frame queue
+  if (free_frame_queue == NULL) {
+    TracePrintf(1, "attempting to use queue before initialization\n");
+    return;
+  }
+  for (int i = 0; i < NUM_VPN; i ++) {
+    int* frame_no = malloc(sizeof(int));
+    *frame_no = i;
+    queuePush(free_frame_queue, frame_no);
+  }
 }
 
 void
@@ -142,7 +197,7 @@ KernelStart(const char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // 1. allocate and initialize free frame queue
   // SetKernelBrk to some point far enough above origin to fit the entire queue
   // every frame above _first_kernel_data_page til max virtual pages should be added as a free frame -> only kernel text and below are being used
-  free_frame_queue = createQueue();
+  free_frame_queue = queueCreate();
   
   // 2. Set up page table for region 0
   // Involves looping to add each pte_t struct to the array
@@ -160,10 +215,23 @@ KernelStart(const char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // Involves looping to add each pte_t struct to the array
   // Each frame should have valid bit equal to zero and point to frame zero except one near the top of the address space for the user's stack
   // load page table address into appropriate register (REG_PTBR1)
+  init_page_tables();
+  // 3.5: Add every frame that isn't mapped in the region 0 page table
+  // to the free frames queue
+  init_free_frame_queue();
   
   // 4. Enbale virtual memory by switching the register value in hardware + flush the TLB
+  virtual_mem_enabled = 1;
+  WriteRegister(virtual_mem_enabled, 1);
 
   // 5. Allocate ready, blocked, and dead queues using queue_new functions
+  process_ready_queue = queueCreate();
+  num_ready_processes = 0;
+  process_blocked_arr = malloc(sizeof(pcb_t*) * MAX_PROCESSES);
+  num_blocked_processes = 0;
+  process_dead_arr = malloc(sizeof(pcb_t*) * MAX_PROCESSES);
+  num_dead_processes = 0;
+  current_process = NULL;
 
   // 6. Allocate the interrupt vector and put the address in the appropriate register
 
