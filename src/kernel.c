@@ -2,13 +2,28 @@
 #include <ykernel.h>
 #include <yuser.h>
 #include <hardware.h>
-#include <datastructures/queue.h>
+#include "datastructures/queue.h"
 #include "kernel.h"
 #include <ykernel.h>
 #include <load_info.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <ctype.h>
+#include "traps.h"
+
+unsigned long kernel_brk_offset = 0;
+unsigned int virtual_mem_enabled = 0;
+unsigned int num_blocked_processes = 0;
+unsigned int num_ready_processes = 0;
+unsigned int num_dead_processes = 0;
+char* tty_buffers[NUM_TERMINALS];
+queue_t* free_frame_queue = NULL;
+pte_t region_0_pages[VMEM_REGION_SIZE/PAGESIZE];
+pte_t region_1_pages[VMEM_REGION_SIZE/PAGESIZE];
+queue_t* process_ready_queue = NULL;
+pcb_t** process_blocked_arr = NULL;
+pcb_t** process_dead_arr = NULL;
+pcb_t* current_process = NULL;
 
 /**
  * Helper function: iterates over page from the old top index
@@ -93,12 +108,12 @@ SetKernelBrk(void* addr)
   // check to make sure that the suggested brk is not above the stack start page
   // check to make sure that if the brk is shrinking, there's nothing in the pages that will now be above the brk
   if (suggested_brk_page_idx < _orig_kernel_brk_page) {
-    TracePrintf(1, "attempting to set kernel brk below original brk");
+    TracePrintf(1, "attempting to set kernel brk below original brk\n");
     return -1;
   }
 
   if (suggested_brk_page_idx > DOWN_TO_PAGE(KERNEL_STACK_BASE)) {
-    TracePrintf(1, "attempting to set kernel brk above kernel stack base");
+    TracePrintf(1, "attempting to set kernel brk above kernel stack base\n");
     return -1;
   }
 
@@ -192,11 +207,12 @@ init_free_frame_queue()
 }
 
 void
-KernelStart(const char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
+KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
 {
   // 1. allocate and initialize free frame queue
   // SetKernelBrk to some point far enough above origin to fit the entire queue
   // every frame above _first_kernel_data_page til max virtual pages should be added as a free frame -> only kernel text and below are being used
+  virtual_mem_enabled = 0;
   free_frame_queue = queueCreate();
   
   // 2. Set up page table for region 0
@@ -234,8 +250,13 @@ KernelStart(const char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   current_process = NULL;
 
   // 6. Allocate the interrupt vector and put the address in the appropriate register
+  if (RegisterTrapHandlers() != 0) {
+    TracePrintf(1, "trap handler registration failed\n");
+  }
 
   // 7. Load the idle process and start the scheduler
+
+  TracePrintf(1, "Sucessfuly leaving kernel start\n");
 }
 
 KernelContext*
@@ -496,7 +517,7 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
   /*
    * Zero out the uninitialized data area
    */
-  bzero(li.id_end, li.ud_end - li.id_end);
+  bzero((void*)li.id_end, li.ud_end - li.id_end);
 
   /*
    * Set the entry point in the process's UserContext

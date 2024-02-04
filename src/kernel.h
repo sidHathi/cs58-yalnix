@@ -19,25 +19,25 @@ extern pte_t region_0_pages[VMEM_REGION_SIZE/PAGESIZE];
 extern pte_t region_1_pages[VMEM_REGION_SIZE/PAGESIZE];
 
 // boolean that stores whether virtual memory is enabled
-extern unsigned int virtual_mem_enabled = 0;
+extern unsigned int virtual_mem_enabled;
 
 // number of bits that kernel break has been moved upwards from origin
-extern unsigned long kernel_brk_offset = 0;
+extern unsigned long kernel_brk_offset;
 
 // number of ready processes
-extern int num_ready_processes;
+extern unsigned int num_ready_processes;
 
 // queue that stores pointers to pcbs of ready processes
 extern queue_t* process_ready_queue;
 
 // number of blocked processes
-extern int num_blocked_processes;
+extern unsigned int num_blocked_processes;
 
 // array stores pointers to pcbs of blocked processes PCBs
 extern pcb_t** process_blocked_arr;
 
 // number of dead processes
-extern int num_dead_processes;
+extern unsigned int num_dead_processes;
 
 // array that stores pointers to pcbs of dead processes
 extern pcb_t** process_dead_arr;

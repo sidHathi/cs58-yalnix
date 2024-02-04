@@ -1,7 +1,8 @@
-#include "kernel.h"
 #include "../../yalnix_framework/include/yalnix.h"
 #include "../../yalnix_framework/include/ykernel.h"
 #include "../../yalnix_framework/include/hardware.h"
+#include "traps.h"
+#include "kernel.h"
 
 // Trap handler for TRAP_KERNEL
 void TrapKernelHandler(UserContext* user_context) {

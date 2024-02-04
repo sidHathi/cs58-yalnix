@@ -1,5 +1,4 @@
-#include <lock.h>
-#include <queue.h>
+#include "lock.h"
 
 typedef struct lock {
   int lock_id; // unique identifier

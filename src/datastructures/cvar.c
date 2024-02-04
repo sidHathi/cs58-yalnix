@@ -1,5 +1,4 @@
-#include <cvar.h>
-#include <queue.h>
+#include "cvar.h"
 
 typedef struct cvar {
   int cvar_id; // unique identifier
@@ -12,6 +11,7 @@ cvar_new(int cvar_id, int owner)
 {
   // allocate memory for new cvar with an empty blocked queue
   // return it
+  return NULL;
 }
 
 void
