@@ -4,71 +4,78 @@
 
 // Generic FIFO queue
 // Source: https://www.geeksforgeeks.org/queue-linked-list-implementation/#
+// Modified to suit our needs
 
 // A linked list (LL) node to store a queue entry
 typedef struct qnode {
-	int key;
-	qnode_t* next;
+	int key; 				// Unique identifier
+	qnode_t* next;  // Pointer to next node in the queue
+	void* data;			// Pointer to data of current node
 } qnode_t;
 
-// The queue, front stores the front node of LL and rear
-// stores the last node of LL
+// Queue data structure
 typedef struct queue {
-	qnode_t *front, *rear;
+	qnode_t *front, *rear;	// Pointers to front and back of queue
+	int next_key;						// Key to assign to next node that gets enqueued
 } queue_t;
 
-qnode_t*
-newNode(int k)
-{
-	qnode_t* temp
-		= (qnode_t*)malloc(sizeof(qnode_t));
-	temp->key = k;
-	temp->next = NULL;
-	return temp;
-}
-
+// Handle creation of new queue
+// Caller is responsible for freeing this memory
 queue_t*
-createQueue()
+queueCreate()
 {
-	queue_t* q
-		= (queue_t*)malloc(sizeof(queue_t));
+	queue_t* q = (queue_t*) malloc(sizeof(queue_t));
 	q->front = q->rear = NULL;
+	q->next_key = 0;
 	return q;
 }
 
+// Enqueue new node
 void
-enQueue(queue_t* q, int k)
-{
-	// Create a new LL node
-	qnode_t* temp = newNode(k);
+queuePush(queue_t* q, void* data)
+{	
+	// Allocate memory for new node
+	qnode_t* new_node = (qnode_t*) malloc(sizeof(qnode_t));
+	new_node->data = data;
+	new_node->key = q->next_key;
+	new_node->next = NULL;
 
 	// If queue is empty, then new node is front and rear
-	// both
 	if (q->rear == NULL) {
-		q->front = q->rear = temp;
+		q->front = q->rear = new_node;
 		return;
 	}
 
 	// Add the new node at the end of queue and change rear
-	q->rear->next = temp;
-	q->rear = temp;
+	q->rear->next = new_node;
+	q->rear = new_node;
+
+	// Increment next_key
+	q->next_key++;
 }
 
-void
-deQueue(queue_t* q)
+// Dequeue front node
+void*
+queuePop(queue_t* q)
 {
 	// If queue is empty, return NULL.
 	if (q->front == NULL)
 		return;
 
 	// Store previous front and move front one node ahead
-	struct QNode* temp = q->front;
-
+	qnode_t* front_node = q->front;
 	q->front = q->front->next;
 
 	// If front becomes NULL, then change rear also as NULL
 	if (q->front == NULL)
 		q->rear = NULL;
 
-	free(temp);
+	// Store pointer to popped node's data
+	void* data = front_node->data;
+
+	// Free the popped node
+	free(front_node);
+
+	// Return pointer to popped node's data
+	return data;
 }
