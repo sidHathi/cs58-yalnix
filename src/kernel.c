@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <ctype.h>
 #include "traps.h"
+#include "datastructures/pcb.h"
+#include "datastructures/memory_cache.h"
 
 unsigned long kernel_brk_offset = 0;
 unsigned int virtual_mem_enabled = 0;
@@ -112,7 +114,7 @@ SetKernelBrk(void* addr)
     return -1;
   }
 
-  if (suggested_brk_page_idx > DOWN_TO_PAGE(KERNEL_STACK_BASE)) {
+  if (suggested_brk_page_idx > (int)DOWN_TO_PAGE((int)KERNEL_STACK_BASE)) {
     TracePrintf(1, "attempting to set kernel brk above kernel stack base\n");
     return -1;
   }
@@ -263,22 +265,59 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   TracePrintf(1, "Sucessfuly leaving kernel start\n");
 }
 
+unsigned int
+check_memory_validity(void* pointer_addr)
+{
+  int byte_no = (int)pointer_addr;
+  int page_addr = DOWN_TO_PAGE(byte_no);
+  int page_no = page_addr/PAGESIZE;
+  if (page_no > NUM_PAGES) {
+    return -1;
+  }
+  pte_t page = region_0_pages[page_no];
+  // maybe also check read/write permissions but not sure how to do yet
+  if (page.valid) {
+    return 1;
+  }
+  return 0;
+}
+
 KernelContext*
 KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p)
 {
   // Check that the pointers passed in for each input are valid in memory and correspond to actual pcbs and kernel context
     // if this is not the case, return null
+  if (!(check_memory_validity(curr_pcb_p) && check_memory_validity(next_pcb_p))) {
+    return NULL;
+  }
 
+  pcb_t* curr_pcb = (pcb_t*)curr_pcb_p;
+  pcb_t* next_pcb = (pcb_t*)next_pcb_p;
+  if (!(check_memory_validity(curr_pcb->krn_ctx) && check_memory_validity(next_pcb->krn_ctx) && check_memory_validity(curr_pcb->kernel_stack_data) && check_memory_validity(next_pcb->kernel_stack_data))) {
+    return NULL;
+  }
   // copy the bytes from kc_in into the curr_pcb_p's krn_ctx
+  memcpy(curr_pcb->krn_ctx, kc_in, sizeof(KernelContext));
   // copy the current region one page table into curr_pcb_p's page_table
-  // store the contents of the CPU registers into the curr_pcb_p usr_ctx
+  memcpy(curr_pcb->page_table, region_1_pages, NUM_PAGES*sizeof(pte_t));
+  // store the contents of the CPU registers into the curr_pcb_p usr_ctx -> this needs to get done in the trap actually
+
   // Get the frame numbers for the kernel's stack using the region 0 page table ->
     // these will lie from KERNEL_STACK_BASE until the last (highest) page in virtual memory -> each page will reference its frame number
-  // copy the frame numbers into curr_pcb_p
+  void* kernel_stack_addr = (void*)KERNEL_STACK_BASE;
+  memory_cache_t* kernel_cache = memory_cache_new(KERNEL_STACK_MAXSIZE/PAGESIZE, kernel_stack_addr);
+  memory_cache_load(kernel_cache);
+  curr_pcb->kernel_stack_data = kernel_cache;
   // get the kernel stack frame numbers stored in next_pcb_p
   // use them to change the current region zero frame numbers for the stack pages to the ones stored in next_pcb_p
-  // use the next_pcb's usr_ctx to populate the CPU registers and user stack
+  if (next_pcb->kernel_stack_data != NULL) {
+    memory_cache_restore(next_pcb->kernel_stack_data);
+    memory_cache_free(next_pcb->kernel_stack_data);
+    next_pcb->kernel_stack_data = NULL;
+  }
+  // use the next_pcb's usr_ctx to populate the CPU registers and user stack -> again not sure this can happen yet
   // return the pointer to next_pcb_p's KernelContext stored in next_pcb_p->krn_ctx
+  return next_pcb->krn_ctx;
 }
 
 KernelContext*

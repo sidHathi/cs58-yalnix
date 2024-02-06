@@ -1,17 +1,7 @@
 #include "pcb.h"
+#include "memory_cache.h"
 #include <ylib.h>
 #include <hardware.h>
-
-typedef struct pcb {
-	ulong state; // make this an enum with values for running, stopped, ready, blocked, etc
-	int pid;
-	pcb_t* parent;
-	pcb_t** children;
-	pte_t* page_table;
-	UserContext* usr_ctx;
-  KernelContext* krn_ctx; // stored on process switch
-  ulong* kernel_stack_frames; // array of frame numbers
-} pcb_t;
 
 pcb_t*
 pcbNew(int pid, pte_t* initial_page_table, pcb_t* parent, UserContext* initial_user_ctx)
@@ -30,10 +20,9 @@ pcbNew(int pid, pte_t* initial_page_table, pcb_t* parent, UserContext* initial_u
   new_pcb->krn_ctx = NULL;
 
   // Need to set this later, and figure out. NULL for now.
-  new_pcb->kernel_stack_frames = NULL;
+  new_pcb->kernel_stack_data = NULL;
 
   return new_pcb;
-
 }
 
 
