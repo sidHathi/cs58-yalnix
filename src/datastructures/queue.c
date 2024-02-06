@@ -6,19 +6,6 @@
 // Source: https://www.geeksforgeeks.org/queue-linked-list-implementation/#
 // Modified to suit our needs
 
-// A linked list (LL) node to store a queue entry
-typedef struct qnode {
-	int key; 				// Unique identifier
-	qnode_t* next;  // Pointer to next node in the queue
-	void* data;			// Pointer to data of current node
-} qnode_t;
-
-// Queue data structure
-typedef struct queue {
-	qnode_t *front, *rear;	// Pointers to front and back of queue
-	int next_key;						// Key to assign to next node that gets enqueued
-} queue_t;
-
 // Handle creation of new queue
 // Caller is responsible for freeing this memory
 queue_t*

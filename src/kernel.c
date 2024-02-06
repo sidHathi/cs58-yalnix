@@ -12,6 +12,7 @@
 #include "traps.h"
 #include "datastructures/pcb.h"
 #include "datastructures/memory_cache.h"
+#include "programs/idle.h"
 
 unsigned long kernel_brk_offset = 0;
 unsigned int virtual_mem_enabled = 0;
@@ -259,11 +260,53 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   if (RegisterTrapHandlers() != 0) {
     TracePrintf(1, "trap handler registration failed\n");
   }
+  else {
+    TracePrintf(1, "Successfully registered trap handlers.\n");
+  }
 
-  // 7. Load the idle process and start the scheduler
-  TracePrintf(1, "%s\n", current_process->pid);
+  // 7. Build Idle process PCB and make it current_process
+  // To do: start the scheduler
+
+  // TEMPORARY CHECKPOINT 2 SOLUTION TO LOAD IDLE PROGRAM
+  TracePrintf(1, "0\n");
+
+  pte_t* idle_pte = (pte_t*) queuePop(free_frame_queue);
+  TracePrintf(1, "1\n");
+
+  int idle_pid = helper_new_pid(idle_pte);
+  TracePrintf(1, "2\n");
+
+  pcb_t* idle_parent = NULL;
+  TracePrintf(1, "3\n");
+
+  KernelContext* idle_krn_ctx = NULL;
+  TracePrintf(1, "4\n");
+
+  memory_cache_t* idle_kernel_stack_frames = (memory_cache_t*) malloc(sizeof(memory_cache_t));
+  TracePrintf(1, "5\n");
+  
+  // memory_cache_load(idle_kernel_stack_frames);
+  TracePrintf(1, "6\n");
+
+  usr_ctx->pc = &DoIdle;
+  usr_ctx->sp = (int*) VMEM_1_LIMIT - PAGESIZE;
+
+  pcb_t* idle_pcb = pcbNew(idle_pid, region_1_pages, idle_parent, usr_ctx, idle_krn_ctx, idle_kernel_stack_frames);
+  current_process = idle_pcb;
   TracePrintf(1, "Sucessfuly leaving kernel start\n");
 }
+
+/*
+// struct user_context {
+//   int vector;		/* vector number */
+//   int code;		/* additional "code" for vector */
+//   void *addr;		/* offending address, if any */
+//   void *pc;		/* PC at time of exception */
+//   void *sp;		/* SP at time of exception */
+//   void *ebp;              // base pointer at time of exception
+//   u_long regs[GREGS];     /* general registers at time of exception */
+// };
+// */
 
 unsigned int
 check_memory_validity(void* pointer_addr)

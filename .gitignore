@@ -53,5 +53,10 @@ data
 # Local readme
 MASTER_OUTLINE.md
 
-src/DISK
-src/TTYLOG*
+# Text files
+*DISK
+*TTYLOG*
+*TRACE
+
+# Executables
+*yalnix
