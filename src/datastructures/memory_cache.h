@@ -5,6 +5,12 @@
 
 typedef struct memory_cache memory_cache_t;
 
+typedef struct memory_cache {
+  void* cache_addr;
+  int num_pages;
+  void* original_addr;
+} memory_cache_t;
+
 memory_cache_t* memory_cache_new(int num_pages, void* stack_addr);
 
 // pulls data into the allocated struct

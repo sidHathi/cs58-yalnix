@@ -2,11 +2,6 @@
 #include <hardware.h>
 #include <ylib.h>
 
-typedef struct memory_cache {
-  void* cache_addr;
-  int num_pages;
-  void* original_addr;
-} memory_cache_t;
 
 memory_cache_t*
 memory_cache_new(int num_pages, void* stack_addr)

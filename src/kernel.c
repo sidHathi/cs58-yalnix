@@ -328,6 +328,25 @@ KCCopy(KernelContext* kc_in, void* new_pcb_p, void* not_used)
     // these will lie from KERNEL_STACK_BASE until the last (highest) page in virtual memory -> each page will reference its frame number
   // copy them into new_pcb_p
   // return kc_in
+  if (!check_memory_validity(new_pcb_p)) {
+    return NULL;
+  }
+  pcb_t* new_pcb = (pcb_t*)new_pcb_p;
+  if (!check_memory_validity(new_pcb->krn_ctx)) {
+    return NULL;
+  }
+
+  memcpy(new_pcb->krn_ctx, kc_in, sizeof(KernelContext));
+  if (new_pcb->kernel_stack_data != NULL && new_pcb->kernel_stack_data->cache_addr != NULL && check_memory_validity(new_pcb->kernel_stack_data->cache_addr)) {
+    new_pcb->kernel_stack_data->original_addr = (void*)KERNEL_STACK_BASE;
+    memory_cache_load(new_pcb->kernel_stack_data);
+  } else {
+    memory_cache_t* new_cache = memory_cache_new(KERNEL_STACK_MAXSIZE/PAGESIZE, (void*)KERNEL_STACK_BASE);
+    memory_cache_load(new_cache);
+    new_pcb->kernel_stack_data = new_cache;
+  }
+
+  return kc_in;
 }
 
 void
