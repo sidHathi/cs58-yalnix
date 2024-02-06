@@ -49,6 +49,9 @@ void TrapMemoryHandler(UserContext* user_context) {
 
   // Checkpoint 2 functionality:
   TracePrintf(1, "Trap Memory! This trap is not yet handled!\n");
+  TracePrintf(1, "%x %x\n", user_context->addr, user_context->pc);
+  int page_num = DOWN_TO_PAGE(user_context->addr) / PAGESIZE;
+  TracePrintf(1, "%d\n", page_num);
 }
 
 // Trap handler for TRAP_MATH

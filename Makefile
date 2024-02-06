@@ -6,6 +6,6 @@ all:
 
 clean:
 	make -C src clean
-	rm -rf yalnix
+	rm -f yalnix
 
 .PHONY: all clean

@@ -3,6 +3,7 @@
 
 #include <ylib.h>
 #include <hardware.h>
+#include <yuser.h>
 
 void DoIdle(void);
 

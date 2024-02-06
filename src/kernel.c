@@ -146,13 +146,13 @@ init_page_tables()
       // mark it as invalid with no permissions
   for (int i = 0; i < VMEM_REGION_SIZE/PAGESIZE; i ++) {
     int frame_region = 0;
-    if (i < _first_kernel_text_page) {
+    if (i <= _first_kernel_text_page) {
       frame_region = 1;
     } else if (i < _first_kernel_data_page) {
       frame_region = 2;
-    } else if (i < _orig_kernel_brk_page + kernel_brk_offset) {
+    } else if (i <= _orig_kernel_brk_page + kernel_brk_offset) {
       frame_region = 3;
-    } else if (i > KERNEL_STACK_BASE) {
+    } else if (i >= KERNEL_STACK_BASE/PAGESIZE && i < KERNEL_STACK_LIMIT/PAGESIZE) {
       frame_region = 4;
     }
 
@@ -203,9 +203,22 @@ init_free_frame_queue()
     return;
   }
   for (int i = 0; i < NUM_VPN; i ++) {
-    int* frame_no = malloc(sizeof(int));
-    *frame_no = i;
-    queuePush(free_frame_queue, frame_no);
+    int frame_region = 0;
+    if (i <=_first_kernel_text_page) {
+      frame_region = 1;
+    } else if (i < _first_kernel_data_page) {
+      frame_region = 2;
+    } else if (i <= _orig_kernel_brk_page + kernel_brk_offset) {
+      frame_region = 3;
+    } else if (i >= KERNEL_STACK_BASE/PAGESIZE && i < KERNEL_STACK_LIMIT/PAGESIZE) {
+      frame_region = 4;
+    }
+
+    if (frame_region == 0) {
+      int* frame_no = malloc(sizeof(int));
+      *frame_no = i;
+      queuePush(free_frame_queue, frame_no);
+    }
   }
 }
 
@@ -235,9 +248,9 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // Each frame should have valid bit equal to zero and point to frame zero except one near the top of the address space for the user's stack
   // load page table address into appropriate register (REG_PTBR1)
   init_page_tables();
-  WriteRegister(REG_PTBR0, (unsigned int)&region_0_pages);
+  WriteRegister(REG_PTBR0, (unsigned int)region_0_pages);
   WriteRegister(REG_PTLR0, VMEM_REGION_SIZE/PAGESIZE);
-  WriteRegister(REG_PTBR1, (unsigned int)&region_1_pages);
+  WriteRegister(REG_PTBR1, (unsigned int)region_1_pages);
   WriteRegister(REG_PTLR1, VMEM_REGION_SIZE/PAGESIZE);
   // 3.5: Add every frame that isn't mapped in the region 0 page table
   // to the free frames queue
@@ -268,10 +281,16 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // To do: start the scheduler
 
   // TEMPORARY CHECKPOINT 2 SOLUTION TO LOAD IDLE PROGRAM
-  pte_t* idle_pte = (pte_t*) queuePop(free_frame_queue);
-  int idle_pid = helper_new_pid(idle_pte);
+  int idle_pte_index = *(int*)queuePop(free_frame_queue);
+  int stack_page_index = DOWN_TO_PAGE(VMEM_1_LIMIT)/PAGESIZE-1;
+  region_1_pages[stack_page_index].valid = 1;
+  region_1_pages[stack_page_index].prot = PROT_ALL;
+  region_1_pages[stack_page_index].pfn = idle_pte_index;
+  TracePrintf(1, "Page index: %d\n", stack_page_index);
+  TracePrintf(1, "%x\n", region_1_pages[stack_page_index].pfn);
+  int idle_pid = helper_new_pid(region_1_pages);
   usr_ctx->pc = &DoIdle;
-  usr_ctx->sp = (void*) KERNEL_STACK_BASE;
+  usr_ctx->sp = (void*) VMEM_1_LIMIT - PAGESIZE;
   pcb_t* idle_pcb = pcbNew(idle_pid, region_1_pages, NULL, usr_ctx, NULL, NULL);
   TracePrintf(1, "Sucessfuly leaving kernel start\n");
 }
