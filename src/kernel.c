@@ -268,31 +268,11 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // To do: start the scheduler
 
   // TEMPORARY CHECKPOINT 2 SOLUTION TO LOAD IDLE PROGRAM
-  TracePrintf(1, "0\n");
-
   pte_t* idle_pte = (pte_t*) queuePop(free_frame_queue);
-  TracePrintf(1, "1\n");
-
   int idle_pid = helper_new_pid(idle_pte);
-  TracePrintf(1, "2\n");
-
-  pcb_t* idle_parent = NULL;
-  TracePrintf(1, "3\n");
-
-  KernelContext* idle_krn_ctx = NULL;
-  TracePrintf(1, "4\n");
-
-  memory_cache_t* idle_kernel_stack_frames = (memory_cache_t*) malloc(sizeof(memory_cache_t));
-  TracePrintf(1, "5\n");
-  
-  // memory_cache_load(idle_kernel_stack_frames);
-  TracePrintf(1, "6\n");
-
   usr_ctx->pc = &DoIdle;
   usr_ctx->sp = (void*) KERNEL_STACK_BASE;
-
-  pcb_t* idle_pcb = pcbNew(idle_pid, region_1_pages, idle_parent, usr_ctx, idle_krn_ctx, idle_kernel_stack_frames);
-  current_process = idle_pcb;
+  pcb_t* idle_pcb = pcbNew(idle_pid, region_1_pages, NULL, usr_ctx, NULL, NULL);
   TracePrintf(1, "Sucessfuly leaving kernel start\n");
 }
 
