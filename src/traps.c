@@ -94,15 +94,15 @@ int RegisterTrapHandlers() {
   }
 
   void** function_pointers = (void**) malloc(TRAP_VECTOR_SIZE * sizeof(void*));
-  function_pointers[TRAP_KERNEL] = &TrapKernelHandler;
-  function_pointers[TRAP_CLOCK] = &TrapClockHandler;
-  function_pointers[TRAP_ILLEGAL] = &TrapIllegalHandler;
-  function_pointers[TRAP_MEMORY] = &TrapMemoryHandler;
-  function_pointers[TRAP_MATH] = &TrapMathHandler;
-  function_pointers[TRAP_TTY_RECEIVE] = &TrapTTYReceiveHandler;
-  function_pointers[TRAP_TTY_TRANSMIT] = &TrapTTYTransmitHandler;
-  function_pointers[TRAP_DISK] = &TrapDiskHandler;
-  WriteRegister(REG_VECTOR_BASE, (unsigned long int) &function_pointers);
+  function_pointers[TRAP_KERNEL] = (void*) &TrapKernelHandler;
+  function_pointers[TRAP_CLOCK] = (void*) &TrapClockHandler;
+  function_pointers[TRAP_ILLEGAL] = (void*) &TrapIllegalHandler;
+  function_pointers[TRAP_MEMORY] = (void*) &TrapMemoryHandler;
+  function_pointers[TRAP_MATH] = (void*) &TrapMathHandler;
+  function_pointers[TRAP_TTY_RECEIVE] = (void*) &TrapTTYReceiveHandler;
+  function_pointers[TRAP_TTY_TRANSMIT] = (void*) &TrapTTYTransmitHandler;
+  function_pointers[TRAP_DISK] = (void*) &TrapDiskHandler;
+  WriteRegister(REG_VECTOR_BASE, (unsigned int) function_pointers);
 
   return 0;
 }

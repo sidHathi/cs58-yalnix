@@ -289,7 +289,7 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   TracePrintf(1, "6\n");
 
   usr_ctx->pc = &DoIdle;
-  usr_ctx->sp = (int*) VMEM_1_LIMIT - PAGESIZE;
+  usr_ctx->sp = (void*) KERNEL_STACK_BASE;
 
   pcb_t* idle_pcb = pcbNew(idle_pid, region_1_pages, idle_parent, usr_ctx, idle_krn_ctx, idle_kernel_stack_frames);
   current_process = idle_pcb;
