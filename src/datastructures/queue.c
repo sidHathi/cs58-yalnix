@@ -60,7 +60,7 @@ queuePop(queue_t* q)
 {
 	// If queue is empty, return NULL.
 	if (q->front == NULL)
-		return;
+		return NULL;
 
 	// Store previous front and move front one node ahead
 	qnode_t* front_node = q->front;

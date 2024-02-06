@@ -32,7 +32,6 @@ void ExitHandler(int status) {
 
   // takes in the exit status, and returns out of the main function calling it
 
-  return status;
 }
 
 int WaitHandler(int *status_ptr) {

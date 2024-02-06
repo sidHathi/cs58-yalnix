@@ -102,7 +102,7 @@ int RegisterTrapHandlers() {
   function_pointers[TRAP_TTY_RECEIVE] = &TrapTTYReceiveHandler;
   function_pointers[TRAP_TTY_TRANSMIT] = &TrapTTYTransmitHandler;
   function_pointers[TRAP_DISK] = &TrapDiskHandler;
-  WriteRegister(REG_VECTOR_BASE, &function_pointers);
+  WriteRegister(REG_VECTOR_BASE, (unsigned long int) &function_pointers);
 
   return 0;
 }

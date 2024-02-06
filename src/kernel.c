@@ -261,7 +261,7 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   }
 
   // 7. Load the idle process and start the scheduler
-
+  TracePrintf(1, "%s\n", current_process->pid);
   TracePrintf(1, "Sucessfuly leaving kernel start\n");
 }
 
