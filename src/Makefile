@@ -7,7 +7,6 @@
 #	Nov 30, 2022
 
 
-
 # Where's your kernel source?
 K_SRC_DIR = .
 

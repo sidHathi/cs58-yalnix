@@ -1,10 +1,5 @@
-#include "../../yalnix_framework/include/yalnix.h"
-#include "../../yalnix_framework/include/ykernel.h"
-#include "../../yalnix_framework/include/hardware.h"
 #include "traps.h"
-#include "kernel.h"
 
-// Trap handler for TRAP_KERNEL
 void TrapKernelHandler(UserContext* user_context) {
   // PSEUDOCODE
   // switch statement based on user_context.code
@@ -16,7 +11,6 @@ void TrapKernelHandler(UserContext* user_context) {
   TracePrintf(1, "Trap Kernel! Code: %x\n", user_context->code);
 }
 
-// Trap handler for TRAP_CLOCK
 void TrapClockHandler(UserContext* user_context) {
   // PSEUDOCODE
   // if there are processes waiting on the ready queue, invoke the scheduler to move the next process to running
@@ -28,7 +22,6 @@ void TrapClockHandler(UserContext* user_context) {
   TracePrintf(1, "Trap Clock!\n");
 }
 
-// Trap handler for TRAP_ILLEGAL
 void TrapIllegalHandler(UserContext* user_context) {
   // PSEUDOCODE
   // Move the user_context's PCB to the dead PCB array (i.e. abort this process)
@@ -38,7 +31,6 @@ void TrapIllegalHandler(UserContext* user_context) {
   TracePrintf(1, "Trap Illegal! This trap is not yet handled!\n");
 }
 
-// Trap handler for TRAP_MEMORY
 void TrapMemoryHandler(UserContext* user_context) {
   // PSEUDOCODE
   // if the address that was touched to trigger this process is between the user brk and the bottom of the user stack,
@@ -49,12 +41,8 @@ void TrapMemoryHandler(UserContext* user_context) {
 
   // Checkpoint 2 functionality:
   TracePrintf(1, "Trap Memory! This trap is not yet handled!\n");
-  TracePrintf(1, "offending addr: %x program counter: %x\n", user_context->addr, user_context->pc);
-  int page_num = DOWN_TO_PAGE(user_context->addr) / PAGESIZE;
-  TracePrintf(1, "%d\n", page_num);
 }
 
-// Trap handler for TRAP_MATH
 void TrapMathHandler(UserContext* user_context) {
   // PSEUDOCODE
   // Move the user_context's PCB to the dead PCB array (i.e. abort this process)
@@ -64,7 +52,6 @@ void TrapMathHandler(UserContext* user_context) {
   TracePrintf(1, "Trap Math! This trap is not yet handled!\n");
 }
 
-// Trap handler for TRAP_TTY_RECEIVE
 void TrapTTYReceiveHandler(UserContext* user_context) {
   // PSEUDOCODE
   // Get terminal index from user_context.code
@@ -76,7 +63,6 @@ void TrapTTYReceiveHandler(UserContext* user_context) {
   TracePrintf(1, "Trap TTY Receive! This trap is not yet handled!\n");
 }
 
-// Trap handler for TRAP_TTY_TRANSMIT
 void TrapTTYTransmitHandler(UserContext* user_context) {
   // PSEUDOCODE
   // Complete blocked process that started this terminal output
@@ -87,7 +73,7 @@ void TrapTTYTransmitHandler(UserContext* user_context) {
 }
 
 void TrapDiskHandler(UserContext* user_context) {
-  TracePrintf(1, "Trap Disk! This funcionality is not required for Yalnix!\n");
+  TracePrintf(1, "Trap Disk! OOPS! This funcionality is not supported by Yalnix!\n");
 }
 
 int RegisterTrapHandlers() {
@@ -96,6 +82,7 @@ int RegisterTrapHandlers() {
     return ERROR;
   }
 
+  // Build array of trap handlers
   void** function_pointers = (void**) malloc(TRAP_VECTOR_SIZE * sizeof(void*));
   function_pointers[TRAP_KERNEL] = (void*) &TrapKernelHandler;
   function_pointers[TRAP_CLOCK] = (void*) &TrapClockHandler;
@@ -105,6 +92,8 @@ int RegisterTrapHandlers() {
   function_pointers[TRAP_TTY_RECEIVE] = (void*) &TrapTTYReceiveHandler;
   function_pointers[TRAP_TTY_TRANSMIT] = (void*) &TrapTTYTransmitHandler;
   function_pointers[TRAP_DISK] = (void*) &TrapDiskHandler;
+
+  // Write pointer to priveledged register
   WriteRegister(REG_VECTOR_BASE, (unsigned int) function_pointers);
 
   return 0;
