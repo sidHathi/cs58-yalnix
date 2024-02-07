@@ -9,10 +9,20 @@
 // Modified to suit our needs
 
 // A linked list (LL) node to store a queue entry
-typedef struct qnode qnode_t;
+typedef struct qnode {
+	int key; 				// Unique identifier
+	struct qnode* next;  // Pointer to next node in the queue
+	void* data;			// Pointer to data of current node
+} qnode_t;
 
 // Queue data structure
-typedef struct queue queue_t;
+typedef struct queue {
+	qnode_t *front, *rear;	// Pointers to front and back of queue
+	int next_key;						// Key to assign to next node that gets enqueued
+} queue_t;
+
+//type def for a function passed as a parameter to free a queue for any data type
+typedef void (*freeFunc)(void*);
 
 // A utility function to create an empty queue
 // Caller is responsible freeing queue memory later.

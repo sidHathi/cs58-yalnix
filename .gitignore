@@ -52,3 +52,11 @@ data
 
 # Local readme
 MASTER_OUTLINE.md
+
+# Text files
+*DISK
+*TTYLOG*
+*TRACE
+
+# Executables
+*yalnix

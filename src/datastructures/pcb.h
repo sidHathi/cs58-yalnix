@@ -3,6 +3,8 @@
 
 #include <yalnix.h>
 #include <hardware.h>
+#include <ylib.h>
+#include "memory_cache.h"
 
 #define READY 0
 #define BLOCKED 1
@@ -11,8 +13,20 @@
 
 typedef struct pcb pcb_t;
 
-pcb_t* pcbNew(int pid, pte_t* initial_page_table, pcb_t* parent, UserContext* initial_user_ctx);
+typedef struct pcb {
+	unsigned int state; // make this an enum with values for running, stopped, ready, blocked, etc
+	int pid;
+	pcb_t* parent;
+	pcb_t** children;
+	pte_t* page_table;
+	UserContext* usr_ctx;
+  KernelContext* krn_ctx; // stored on process switch
+  memory_cache_t* kernel_stack_data; // array of frame numbers
+} pcb_t;
 
-void pcb_free(pcb_t* pcb);
+pcb_t* pcbNew(int pid, pte_t* initial_page_table, pcb_t* parent, UserContext* initial_user_ctx, 
+KernelContext* krn_ctx, memory_cache_t* kernel_stack_data);
+
+void pcbFree(pcb_t* pcb);
 
 #endif /*!_pcb_h*/

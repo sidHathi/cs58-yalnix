@@ -10,7 +10,18 @@
 #include <unistd.h>
 #include <ctype.h>
 #include "traps.h"
+#include "datastructures/pcb.h"
+#include "datastructures/memory_cache.h"
+#include "programs/idle.h"
 
+// Macros that enumerate page table regions
+#define REGION_UNUSED 0
+#define REGION_BASE_MEMORY 1
+#define REGION_KERNEL_TEXT 2
+#define REGION_KERNEL_DATAHEAP 3
+#define REGION_KERNEL_STACK 4
+
+// Initialize globals
 unsigned long kernel_brk_offset = 0;
 unsigned int virtual_mem_enabled = 0;
 unsigned int num_blocked_processes = 0;
@@ -24,6 +35,12 @@ queue_t* process_ready_queue = NULL;
 pcb_t** process_blocked_arr = NULL;
 pcb_t** process_dead_arr = NULL;
 pcb_t* current_process = NULL;
+
+// local helper function prototyes
+static void shrink_heap_pages(int prev_top_page_idx, int new_top_page_idx);
+static void expand_heap_pages(int prev_top_page_idx, int new_top_page_idx);
+static void init_page_tables();
+static void init_free_frame_queue();
 
 /**
  * Helper function: iterates over page from the old top index
@@ -112,7 +129,7 @@ SetKernelBrk(void* addr)
     return -1;
   }
 
-  if (suggested_brk_page_idx > DOWN_TO_PAGE(KERNEL_STACK_BASE)) {
+  if (suggested_brk_page_idx > (int)DOWN_TO_PAGE((int)KERNEL_STACK_BASE)) {
     TracePrintf(1, "attempting to set kernel brk above kernel stack base\n");
     return -1;
   }
@@ -127,6 +144,9 @@ SetKernelBrk(void* addr)
   return 0;
 }
 
+/**
+ * Helper function -> sets validity and permissions for region 0 page table
+*/
 void
 init_page_tables()
 {
@@ -141,41 +161,47 @@ init_page_tables()
       // mark it as valid with read and write permissions
     // otherwise ->
       // mark it as invalid with no permissions
-  for (int i = 0; i < VMEM_REGION_SIZE/PAGESIZE; i ++) {
-    int frame_region = 0;
-    if (i < _first_kernel_text_page) {
-      frame_region = 1;
-    } else if (i < _first_kernel_data_page) {
-      frame_region = 2;
-    } else if (i < _orig_kernel_brk_page + kernel_brk_offset) {
-      frame_region = 3;
-    } else if (i > KERNEL_STACK_BASE) {
-      frame_region = 4;
+  for (int page = 0; page < VMEM_REGION_SIZE/PAGESIZE; page ++) {
+    int frame_region = REGION_UNUSED;
+    // figure out where in memory the page is based on its numerical vlaue
+    if (page < _first_kernel_text_page) {
+      frame_region = REGION_BASE_MEMORY;
+    } else if (page < _first_kernel_data_page) {
+      frame_region = REGION_KERNEL_TEXT;
+    } else if (page < _orig_kernel_brk_page + kernel_brk_offset) {
+      frame_region = REGION_KERNEL_DATAHEAP;
+    } else if (page >= KERNEL_STACK_BASE/PAGESIZE && page < KERNEL_STACK_LIMIT/PAGESIZE) {
+      frame_region = REGION_KERNEL_STACK;
     }
 
+    // set page table entry value based on memory region
     switch (frame_region) {
-      case 1:
-        region_0_pages[i].valid = 0;
-        region_0_pages[i].prot = 0;
+      case REGION_BASE_MEMORY:
+        // pages below kernel text are not valid
+        region_0_pages[page].valid = 0;
+        region_0_pages[page].prot = 0;
         break;
-      case 2:
-        region_0_pages[i].pfn = i;
-        region_0_pages[i].prot = PROT_EXEC | PROT_READ;
-        region_0_pages[i].valid = 1;
+      case REGION_KERNEL_TEXT:
+        // pages in kernel text are executable and readable
+        region_0_pages[page].pfn = page; // before virtual mem initialized -> pages and frame numbers must be equal
+        region_0_pages[page].prot = PROT_EXEC | PROT_READ;
+        region_0_pages[page].valid = 1;
         break;
-      case 3:
-        region_0_pages[i].pfn = i;
-        region_0_pages[i].prot = PROT_WRITE | PROT_READ;
-        region_0_pages[i].valid = 1;
+      case REGION_KERNEL_DATAHEAP:
+        // pages in the kernel data and heap are readable and writable
+        region_0_pages[page].pfn = page;
+        region_0_pages[page].prot = PROT_WRITE | PROT_READ;
+        region_0_pages[page].valid = 1;
         break;
-      case 4:
-        region_0_pages[i].pfn = i;
-        region_0_pages[i].prot = PROT_WRITE | PROT_READ;
-        region_0_pages[i].valid = 1;
+      case REGION_KERNEL_STACK:
+        // pages in the kernel stack are readable and writeable
+        region_0_pages[page].pfn = page;
+        region_0_pages[page].prot = PROT_WRITE | PROT_READ;
+        region_0_pages[page].valid = 1;
         break;
       default:
-        region_0_pages[i].valid = 0;
-        region_0_pages[i].prot = 0;
+        region_0_pages[page].valid = 0;
+        region_0_pages[page].prot = 0;
         break;
     }
   }
@@ -183,26 +209,45 @@ init_page_tables()
   // for region 1 ->
     // TEMPORARY:
     // mark all pages as invalid with no premissions
-  for (int i = 0; i < VMEM_REGION_SIZE/PAGESIZE; i ++) {
-    region_1_pages[i].valid = 0;
-    region_1_pages[i].prot = 0;
+  for (int page = 0; page < VMEM_REGION_SIZE/PAGESIZE; page ++) {
+    region_1_pages[page].valid = 0;
+    region_1_pages[page].prot = 0;
   }
 }
 
+/**
+ * Helper function -> places any frame number not used by the kernel
+ * before memory it initialized into the free frame queue. This should
+ * be run before virtual memory is initialized
+*/
 void
 init_free_frame_queue()
 {
-  // iterate over the number of possible frames
-  // check the corresponding page in the region 0 page table
-  // if it's not valid, add it to free frame queue
   if (free_frame_queue == NULL) {
     TracePrintf(1, "attempting to use queue before initialization\n");
     return;
   }
-  for (int i = 0; i < NUM_VPN; i ++) {
-    int* frame_no = malloc(sizeof(int));
-    *frame_no = i;
-    queuePush(free_frame_queue, frame_no);
+  // iterate over all possible frame number
+  // determine its region in memory before virtual memory was initialized
+  // based on this region, infer whether it is already being used
+  // in region 0 memory. If not -> add to free frame queue
+  for (int frame = 0; frame < NUM_VPN; frame ++) {
+    int frame_region = 0;
+    if (frame < _first_kernel_text_page) {
+      frame_region = 1;
+    } else if (frame < _first_kernel_data_page) {
+      frame_region = 2;
+    } else if (frame < _orig_kernel_brk_page + kernel_brk_offset) {
+      frame_region = 3;
+    } else if (frame >= KERNEL_STACK_BASE/PAGESIZE && frame < KERNEL_STACK_LIMIT/PAGESIZE) {
+      frame_region = 4;
+    }
+
+    if (frame_region == 0) {
+      int* frame_no = malloc(sizeof(int));
+      *frame_no = frame;
+      queuePush(free_frame_queue, frame_no);
+    }
   }
 }
 
@@ -232,17 +277,17 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // Each frame should have valid bit equal to zero and point to frame zero except one near the top of the address space for the user's stack
   // load page table address into appropriate register (REG_PTBR1)
   init_page_tables();
-  WriteRegister(REG_PTBR0, (unsigned int)&region_0_pages);
-  WriteRegister(REG_PTLR0, VMEM_REGION_SIZE/PAGESIZE);
-  WriteRegister(REG_PTBR1, (unsigned int)&region_1_pages);
-  WriteRegister(REG_PTLR1, VMEM_REGION_SIZE/PAGESIZE);
+  WriteRegister(REG_PTBR0, (unsigned int)region_0_pages);
+  WriteRegister(REG_PTLR0, NUM_PAGES);
+  WriteRegister(REG_PTBR1, (unsigned int)region_1_pages);
+  WriteRegister(REG_PTLR1, NUM_PAGES);
   // 3.5: Add every frame that isn't mapped in the region 0 page table
   // to the free frames queue
   init_free_frame_queue();
   
   // 4. Enbale virtual memory by switching the register value in hardware + flush the TLB
   virtual_mem_enabled = 1;
-  WriteRegister(virtual_mem_enabled, 1);
+  WriteRegister(REG_VM_ENABLE, 1);
 
   // 5. Allocate ready, blocked, and dead queues using queue_new functions
   process_ready_queue = queueCreate();
@@ -257,10 +302,52 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   if (RegisterTrapHandlers() != 0) {
     TracePrintf(1, "trap handler registration failed\n");
   }
+  else {
+    TracePrintf(1, "Successfully registered trap handlers.\n");
+  }
 
-  // 7. Load the idle process and start the scheduler
+  // 7. Build Idle process PCB and make it current_process
+  // To do: start the scheduler
 
-  TracePrintf(1, "Sucessfuly leaving kernel start\n");
+  // TEMPORARY CHECKPOINT 2 SOLUTION TO LOAD IDLE PROGRAM
+  int idle_stack_frame_1 = *(int*)queuePop(free_frame_queue);
+  int stack_page_index = NUM_PAGES - 1;
+  region_1_pages[stack_page_index].valid = 1;
+  region_1_pages[stack_page_index].prot = PROT_READ | PROT_WRITE;
+  region_1_pages[stack_page_index].pfn = idle_stack_frame_1;
+  int idle_pid = helper_new_pid(region_1_pages);
+  usr_ctx->pc = &DoIdle;
+  usr_ctx->sp = (void*) (VMEM_1_LIMIT - 4);
+  pcb_t* idle_pcb = pcbNew(idle_pid, region_1_pages, NULL, usr_ctx, NULL, NULL);
+}
+
+/*
+// struct user_context {
+//   int vector;		/* vector number */
+//   int code;		/* additional "code" for vector */
+//   void *addr;		/* offending address, if any */
+//   void *pc;		/* PC at time of exception */
+//   void *sp;		/* SP at time of exception */
+//   void *ebp;              // base pointer at time of exception
+//   u_long regs[GREGS];     /* general registers at time of exception */
+// };
+// */
+
+unsigned int
+check_memory_validity(void* pointer_addr)
+{
+  int byte_no = (int)pointer_addr;
+  int page_addr = DOWN_TO_PAGE(byte_no);
+  int page_no = page_addr/PAGESIZE;
+  if (page_no > NUM_PAGES) {
+    return -1;
+  }
+  pte_t page = region_0_pages[page_no];
+  // maybe also check read/write permissions but not sure how to do yet
+  if (page.valid) {
+    return 1;
+  }
+  return 0;
 }
 
 KernelContext*
@@ -268,17 +355,37 @@ KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p)
 {
   // Check that the pointers passed in for each input are valid in memory and correspond to actual pcbs and kernel context
     // if this is not the case, return null
+  if (!(check_memory_validity(curr_pcb_p) && check_memory_validity(next_pcb_p))) {
+    return NULL;
+  }
 
+  pcb_t* curr_pcb = (pcb_t*)curr_pcb_p;
+  pcb_t* next_pcb = (pcb_t*)next_pcb_p;
+  if (!(check_memory_validity(curr_pcb->krn_ctx) && check_memory_validity(next_pcb->krn_ctx) && check_memory_validity(curr_pcb->kernel_stack_data) && check_memory_validity(next_pcb->kernel_stack_data))) {
+    return NULL;
+  }
   // copy the bytes from kc_in into the curr_pcb_p's krn_ctx
+  memcpy(curr_pcb->krn_ctx, kc_in, sizeof(KernelContext));
   // copy the current region one page table into curr_pcb_p's page_table
-  // store the contents of the CPU registers into the curr_pcb_p usr_ctx
+  memcpy(curr_pcb->page_table, region_1_pages, NUM_PAGES*sizeof(pte_t));
+  // store the contents of the CPU registers into the curr_pcb_p usr_ctx -> this needs to get done in the trap actually
+
   // Get the frame numbers for the kernel's stack using the region 0 page table ->
     // these will lie from KERNEL_STACK_BASE until the last (highest) page in virtual memory -> each page will reference its frame number
-  // copy the frame numbers into curr_pcb_p
+  void* kernel_stack_addr = (void*)KERNEL_STACK_BASE;
+  memory_cache_t* kernel_cache = memory_cache_new(KERNEL_STACK_MAXSIZE/PAGESIZE, kernel_stack_addr);
+  memory_cache_load(kernel_cache);
+  curr_pcb->kernel_stack_data = kernel_cache;
   // get the kernel stack frame numbers stored in next_pcb_p
   // use them to change the current region zero frame numbers for the stack pages to the ones stored in next_pcb_p
-  // use the next_pcb's usr_ctx to populate the CPU registers and user stack
+  if (next_pcb->kernel_stack_data != NULL) {
+    memory_cache_restore(next_pcb->kernel_stack_data);
+    memory_cache_free(next_pcb->kernel_stack_data);
+    next_pcb->kernel_stack_data = NULL;
+  }
+  // use the next_pcb's usr_ctx to populate the CPU registers and user stack -> again not sure this can happen yet
   // return the pointer to next_pcb_p's KernelContext stored in next_pcb_p->krn_ctx
+  return next_pcb->krn_ctx;
 }
 
 KernelContext*
@@ -289,6 +396,25 @@ KCCopy(KernelContext* kc_in, void* new_pcb_p, void* not_used)
     // these will lie from KERNEL_STACK_BASE until the last (highest) page in virtual memory -> each page will reference its frame number
   // copy them into new_pcb_p
   // return kc_in
+  if (!check_memory_validity(new_pcb_p)) {
+    return NULL;
+  }
+  pcb_t* new_pcb = (pcb_t*)new_pcb_p;
+  if (!check_memory_validity(new_pcb->krn_ctx)) {
+    return NULL;
+  }
+
+  memcpy(new_pcb->krn_ctx, kc_in, sizeof(KernelContext));
+  if (new_pcb->kernel_stack_data != NULL && new_pcb->kernel_stack_data->cache_addr != NULL && check_memory_validity(new_pcb->kernel_stack_data->cache_addr)) {
+    new_pcb->kernel_stack_data->original_addr = (void*)KERNEL_STACK_BASE;
+    memory_cache_load(new_pcb->kernel_stack_data);
+  } else {
+    memory_cache_t* new_cache = memory_cache_new(KERNEL_STACK_MAXSIZE/PAGESIZE, (void*)KERNEL_STACK_BASE);
+    memory_cache_load(new_cache);
+    new_pcb->kernel_stack_data = new_cache;
+  }
+
+  return kc_in;
 }
 
 void

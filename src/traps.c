@@ -49,6 +49,9 @@ void TrapMemoryHandler(UserContext* user_context) {
 
   // Checkpoint 2 functionality:
   TracePrintf(1, "Trap Memory! This trap is not yet handled!\n");
+  TracePrintf(1, "offending addr: %x program counter: %x\n", user_context->addr, user_context->pc);
+  int page_num = DOWN_TO_PAGE(user_context->addr) / PAGESIZE;
+  TracePrintf(1, "%d\n", page_num);
 }
 
 // Trap handler for TRAP_MATH
@@ -94,15 +97,15 @@ int RegisterTrapHandlers() {
   }
 
   void** function_pointers = (void**) malloc(TRAP_VECTOR_SIZE * sizeof(void*));
-  function_pointers[TRAP_KERNEL] = &TrapKernelHandler;
-  function_pointers[TRAP_CLOCK] = &TrapClockHandler;
-  function_pointers[TRAP_ILLEGAL] = &TrapIllegalHandler;
-  function_pointers[TRAP_MEMORY] = &TrapMemoryHandler;
-  function_pointers[TRAP_MATH] = &TrapMathHandler;
-  function_pointers[TRAP_TTY_RECEIVE] = &TrapTTYReceiveHandler;
-  function_pointers[TRAP_TTY_TRANSMIT] = &TrapTTYTransmitHandler;
-  function_pointers[TRAP_DISK] = &TrapDiskHandler;
-  WriteRegister(REG_VECTOR_BASE, &function_pointers);
+  function_pointers[TRAP_KERNEL] = (void*) &TrapKernelHandler;
+  function_pointers[TRAP_CLOCK] = (void*) &TrapClockHandler;
+  function_pointers[TRAP_ILLEGAL] = (void*) &TrapIllegalHandler;
+  function_pointers[TRAP_MEMORY] = (void*) &TrapMemoryHandler;
+  function_pointers[TRAP_MATH] = (void*) &TrapMathHandler;
+  function_pointers[TRAP_TTY_RECEIVE] = (void*) &TrapTTYReceiveHandler;
+  function_pointers[TRAP_TTY_TRANSMIT] = (void*) &TrapTTYTransmitHandler;
+  function_pointers[TRAP_DISK] = (void*) &TrapDiskHandler;
+  WriteRegister(REG_VECTOR_BASE, (unsigned int) function_pointers);
 
   return 0;
 }

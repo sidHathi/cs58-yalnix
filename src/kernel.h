@@ -7,6 +7,7 @@
 #include "datastructures/pcb.h"
 
 #define MAX_PROCESSES 128
+#define NUM_PAGES VMEM_REGION_SIZE/PAGESIZE
 
 // Array of strings for kernel to store input from the terminals
 extern char* tty_buffers[NUM_TERMINALS];
@@ -15,8 +16,8 @@ extern char* tty_buffers[NUM_TERMINALS];
 extern queue_t* free_frame_queue;
 
 // global definitions for region 1 and 0 page tables -> stored in kernel data
-extern pte_t region_0_pages[VMEM_REGION_SIZE/PAGESIZE];
-extern pte_t region_1_pages[VMEM_REGION_SIZE/PAGESIZE];
+extern pte_t region_0_pages[NUM_PAGES];
+extern pte_t region_1_pages[NUM_PAGES];
 
 // boolean that stores whether virtual memory is enabled
 extern unsigned int virtual_mem_enabled;

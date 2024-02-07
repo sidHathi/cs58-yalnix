@@ -6,19 +6,6 @@
 // Source: https://www.geeksforgeeks.org/queue-linked-list-implementation/#
 // Modified to suit our needs
 
-// A linked list (LL) node to store a queue entry
-typedef struct qnode {
-	int key; 				// Unique identifier
-	qnode_t* next;  // Pointer to next node in the queue
-	void* data;			// Pointer to data of current node
-} qnode_t;
-
-// Queue data structure
-typedef struct queue {
-	qnode_t *front, *rear;	// Pointers to front and back of queue
-	int next_key;						// Key to assign to next node that gets enqueued
-} queue_t;
-
 // Handle creation of new queue
 // Caller is responsible for freeing this memory
 queue_t*
@@ -60,7 +47,7 @@ queuePop(queue_t* q)
 {
 	// If queue is empty, return NULL.
 	if (q->front == NULL)
-		return;
+		return NULL;
 
 	// Store previous front and move front one node ahead
 	qnode_t* front_node = q->front;
@@ -79,3 +66,42 @@ queuePop(queue_t* q)
 	// Return pointer to popped node's data
 	return data;
 }
+
+int freeQueue(queue_t* q, freeFunc freeFunction) {
+
+  if (q == NULL) {
+    return 1;
+  };
+
+  if(freeFunction == NULL) {
+    return 1;
+  }
+
+  qnode_t* curr_node = q->front;
+	qnode_t* next_node;
+
+  /*
+  *
+  * typedef struct qnode {
+	*   int key; 				// Unique identifier
+	*   struct qnode* next;  // Pointer to next node in the queue
+	*   void* data;			// Pointer to data of current node
+  * } qnode_t;
+  * Do we want to free the data, or have the function handle the deletion of the whole node?
+  */
+  while (curr_node != NULL) {
+
+    next_node == curr_node->next;
+
+    freeFunction(curr_node->data);
+
+    free(curr_node);
+
+    curr_node = next_node;
+
+  }
+
+  return 0;
+
+};
+
