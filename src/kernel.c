@@ -162,16 +162,19 @@ init_page_tables()
         region_0_pages[i].prot = 0;
         break;
       case 2:
+        TracePrintf(1, "assigning page %d to kernel text\n", i);
         region_0_pages[i].pfn = i;
         region_0_pages[i].prot = PROT_EXEC | PROT_READ;
         region_0_pages[i].valid = 1;
         break;
       case 3:
+        TracePrintf(1, "assigning page %d to kernel heap/data\n", i);
         region_0_pages[i].pfn = i;
         region_0_pages[i].prot = PROT_WRITE | PROT_READ;
         region_0_pages[i].valid = 1;
         break;
       case 4:
+        TracePrintf(1, "assigning page %d to kernel stack\n", i);
         region_0_pages[i].pfn = i;
         region_0_pages[i].prot = PROT_WRITE | PROT_READ;
         region_0_pages[i].valid = 1;
@@ -215,6 +218,7 @@ init_free_frame_queue()
     }
 
     if (frame_region == 0) {
+      TracePrintf(1, "adding page %d to free frames\n", i);
       int* frame_no = malloc(sizeof(int));
       *frame_no = i;
       queuePush(free_frame_queue, frame_no);
@@ -249,9 +253,9 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // load page table address into appropriate register (REG_PTBR1)
   init_page_tables();
   WriteRegister(REG_PTBR0, (unsigned int)region_0_pages);
-  WriteRegister(REG_PTLR0, VMEM_REGION_SIZE/PAGESIZE);
+  WriteRegister(REG_PTLR0, NUM_PAGES);
   WriteRegister(REG_PTBR1, (unsigned int)region_1_pages);
-  WriteRegister(REG_PTLR1, VMEM_REGION_SIZE/PAGESIZE);
+  WriteRegister(REG_PTLR1, NUM_PAGES);
   // 3.5: Add every frame that isn't mapped in the region 0 page table
   // to the free frames queue
   init_free_frame_queue();
@@ -281,18 +285,28 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // To do: start the scheduler
 
   // TEMPORARY CHECKPOINT 2 SOLUTION TO LOAD IDLE PROGRAM
-  int idle_pte_index = *(int*)queuePop(free_frame_queue);
-  int stack_page_index = DOWN_TO_PAGE(VMEM_1_LIMIT)/PAGESIZE-1;
+  int idle_stack_frame_1 = *(int*)queuePop(free_frame_queue);
+  int idle_stack_frame_2 = *(int*)queuePop(free_frame_queue);
+  int stack_page_index = NUM_PAGES - 1;
   region_1_pages[stack_page_index].valid = 1;
-  region_1_pages[stack_page_index].prot = PROT_ALL;
-  region_1_pages[stack_page_index].pfn = idle_pte_index;
-  TracePrintf(1, "Page index: %d\n", stack_page_index);
-  TracePrintf(1, "%x\n", region_1_pages[stack_page_index].pfn);
+  region_1_pages[stack_page_index].prot = PROT_READ | PROT_WRITE;
+  region_1_pages[stack_page_index].pfn = idle_stack_frame_1;
+  region_1_pages[stack_page_index-1].valid = 1;
+  region_1_pages[stack_page_index-1].prot = PROT_READ | PROT_WRITE;
+  region_1_pages[stack_page_index-1].pfn = idle_stack_frame_2;
+  TracePrintf(1, "Frame index 1: %d\n", idle_stack_frame_1);
+  TracePrintf(1, "Frame index 2: %d\n", idle_stack_frame_2);
+  TracePrintf(1, "%d\n", region_1_pages[stack_page_index].pfn);
   int idle_pid = helper_new_pid(region_1_pages);
   usr_ctx->pc = &DoIdle;
-  usr_ctx->sp = (void*) VMEM_1_LIMIT - PAGESIZE;
+  usr_ctx->sp = (void*) (VMEM_1_LIMIT - 4);
   pcb_t* idle_pcb = pcbNew(idle_pid, region_1_pages, NULL, usr_ctx, NULL, NULL);
   TracePrintf(1, "Sucessfuly leaving kernel start\n");
+  TracePrintf(1, "Stack pointer: %p\n", usr_ctx->sp);
+  TracePrintf(1, "PC: %p\n", usr_ctx->pc);
+  TracePrintf(1, "PC Page: %d\n", ((int)usr_ctx->pc)/PAGESIZE);
+  TracePrintf(1, "stack pointer page %d\n", ((int)usr_ctx->sp)/PAGESIZE);
+  TracePrintf(1, "User stack page: validity: %lu, prot: %lu, pfn: %lu\n", region_1_pages[127].valid, region_1_pages[127].prot, region_1_pages[127].pfn);
 }
 
 /*
