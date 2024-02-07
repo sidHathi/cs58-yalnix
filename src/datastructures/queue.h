@@ -21,6 +21,9 @@ typedef struct queue {
 	int next_key;						// Key to assign to next node that gets enqueued
 } queue_t;
 
+//type def for a function passed as a parameter to free a queue for any data type
+typedef void (*freeFunc)(void*);
+
 // A utility function to create an empty queue
 // Caller is responsible freeing queue memory later.
 queue_t* queueCreate();
