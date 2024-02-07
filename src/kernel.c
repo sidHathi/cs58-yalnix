@@ -14,6 +14,14 @@
 #include "datastructures/memory_cache.h"
 #include "programs/idle.h"
 
+// Macros that enumerate page table regions
+#define REGION_UNUSED 0
+#define REGION_BASE_MEMORY 1
+#define REGION_KERNEL_TEXT 2
+#define REGION_KERNEL_DATAHEAP 3
+#define REGION_KERNEL_STACK 4
+
+// Initialize globals
 unsigned long kernel_brk_offset = 0;
 unsigned int virtual_mem_enabled = 0;
 unsigned int num_blocked_processes = 0;
@@ -27,6 +35,12 @@ queue_t* process_ready_queue = NULL;
 pcb_t** process_blocked_arr = NULL;
 pcb_t** process_dead_arr = NULL;
 pcb_t* current_process = NULL;
+
+// local helper function prototyes
+static void shrink_heap_pages(int prev_top_page_idx, int new_top_page_idx);
+static void expand_heap_pages(int prev_top_page_idx, int new_top_page_idx);
+static void init_page_tables();
+static void init_free_frame_queue();
 
 /**
  * Helper function: iterates over page from the old top index
@@ -130,6 +144,9 @@ SetKernelBrk(void* addr)
   return 0;
 }
 
+/**
+ * Helper function -> sets validity and permissions for region 0 page table
+*/
 void
 init_page_tables()
 {
@@ -144,44 +161,47 @@ init_page_tables()
       // mark it as valid with read and write permissions
     // otherwise ->
       // mark it as invalid with no permissions
-  for (int i = 0; i < VMEM_REGION_SIZE/PAGESIZE; i ++) {
-    int frame_region = 0;
-    if (i <= _first_kernel_text_page) {
-      frame_region = 1;
-    } else if (i < _first_kernel_data_page) {
-      frame_region = 2;
-    } else if (i <= _orig_kernel_brk_page + kernel_brk_offset) {
-      frame_region = 3;
-    } else if (i >= KERNEL_STACK_BASE/PAGESIZE && i < KERNEL_STACK_LIMIT/PAGESIZE) {
-      frame_region = 4;
+  for (int page = 0; page < VMEM_REGION_SIZE/PAGESIZE; page ++) {
+    int frame_region = REGION_UNUSED;
+    // figure out where in memory the page is based on its numerical vlaue
+    if (page < _first_kernel_text_page) {
+      frame_region = REGION_BASE_MEMORY;
+    } else if (page < _first_kernel_data_page) {
+      frame_region = REGION_KERNEL_TEXT;
+    } else if (page < _orig_kernel_brk_page + kernel_brk_offset) {
+      frame_region = REGION_KERNEL_DATAHEAP;
+    } else if (page >= KERNEL_STACK_BASE/PAGESIZE && page < KERNEL_STACK_LIMIT/PAGESIZE) {
+      frame_region = REGION_KERNEL_STACK;
     }
 
+    // set page table entry value based on memory region
     switch (frame_region) {
-      case 1:
-        region_0_pages[i].valid = 0;
-        region_0_pages[i].prot = 0;
+      case REGION_BASE_MEMORY:
+        // pages below kernel text are not valid
+        region_0_pages[page].valid = 0;
+        region_0_pages[page].prot = 0;
         break;
-      case 2:
-        TracePrintf(1, "assigning page %d to kernel text\n", i);
-        region_0_pages[i].pfn = i;
-        region_0_pages[i].prot = PROT_EXEC | PROT_READ;
-        region_0_pages[i].valid = 1;
+      case REGION_KERNEL_TEXT:
+        // pages in kernel text are executable and readable
+        region_0_pages[page].pfn = page; // before virtual mem initialized -> pages and frame numbers must be equal
+        region_0_pages[page].prot = PROT_EXEC | PROT_READ;
+        region_0_pages[page].valid = 1;
         break;
-      case 3:
-        TracePrintf(1, "assigning page %d to kernel heap/data\n", i);
-        region_0_pages[i].pfn = i;
-        region_0_pages[i].prot = PROT_WRITE | PROT_READ;
-        region_0_pages[i].valid = 1;
+      case REGION_KERNEL_DATAHEAP:
+        // pages in the kernel data and heap are readable and writable
+        region_0_pages[page].pfn = page;
+        region_0_pages[page].prot = PROT_WRITE | PROT_READ;
+        region_0_pages[page].valid = 1;
         break;
-      case 4:
-        TracePrintf(1, "assigning page %d to kernel stack\n", i);
-        region_0_pages[i].pfn = i;
-        region_0_pages[i].prot = PROT_WRITE | PROT_READ;
-        region_0_pages[i].valid = 1;
+      case REGION_KERNEL_STACK:
+        // pages in the kernel stack are readable and writeable
+        region_0_pages[page].pfn = page;
+        region_0_pages[page].prot = PROT_WRITE | PROT_READ;
+        region_0_pages[page].valid = 1;
         break;
       default:
-        region_0_pages[i].valid = 0;
-        region_0_pages[i].prot = 0;
+        region_0_pages[page].valid = 0;
+        region_0_pages[page].prot = 0;
         break;
     }
   }
@@ -189,38 +209,43 @@ init_page_tables()
   // for region 1 ->
     // TEMPORARY:
     // mark all pages as invalid with no premissions
-  for (int i = 0; i < VMEM_REGION_SIZE/PAGESIZE; i ++) {
-    region_1_pages[i].valid = 0;
-    region_1_pages[i].prot = 0;
+  for (int page = 0; page < VMEM_REGION_SIZE/PAGESIZE; page ++) {
+    region_1_pages[page].valid = 0;
+    region_1_pages[page].prot = 0;
   }
 }
 
+/**
+ * Helper function -> places any frame number not used by the kernel
+ * before memory it initialized into the free frame queue. This should
+ * be run before virtual memory is initialized
+*/
 void
 init_free_frame_queue()
 {
-  // iterate over the number of possible frames
-  // check the corresponding page in the region 0 page table
-  // if it's not valid, add it to free frame queue
   if (free_frame_queue == NULL) {
     TracePrintf(1, "attempting to use queue before initialization\n");
     return;
   }
-  for (int i = 0; i < NUM_VPN; i ++) {
+  // iterate over all possible frame number
+  // determine its region in memory before virtual memory was initialized
+  // based on this region, infer whether it is already being used
+  // in region 0 memory. If not -> add to free frame queue
+  for (int frame = 0; frame < NUM_VPN; frame ++) {
     int frame_region = 0;
-    if (i <=_first_kernel_text_page) {
+    if (frame < _first_kernel_text_page) {
       frame_region = 1;
-    } else if (i < _first_kernel_data_page) {
+    } else if (frame < _first_kernel_data_page) {
       frame_region = 2;
-    } else if (i <= _orig_kernel_brk_page + kernel_brk_offset) {
+    } else if (frame < _orig_kernel_brk_page + kernel_brk_offset) {
       frame_region = 3;
-    } else if (i >= KERNEL_STACK_BASE/PAGESIZE && i < KERNEL_STACK_LIMIT/PAGESIZE) {
+    } else if (frame >= KERNEL_STACK_BASE/PAGESIZE && frame < KERNEL_STACK_LIMIT/PAGESIZE) {
       frame_region = 4;
     }
 
     if (frame_region == 0) {
-      TracePrintf(1, "adding page %d to free frames\n", i);
       int* frame_no = malloc(sizeof(int));
-      *frame_no = i;
+      *frame_no = frame;
       queuePush(free_frame_queue, frame_no);
     }
   }
@@ -262,7 +287,7 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   
   // 4. Enbale virtual memory by switching the register value in hardware + flush the TLB
   virtual_mem_enabled = 1;
-  WriteRegister(virtual_mem_enabled, 1);
+  WriteRegister(REG_VM_ENABLE, 1);
 
   // 5. Allocate ready, blocked, and dead queues using queue_new functions
   process_ready_queue = queueCreate();
@@ -286,27 +311,14 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
 
   // TEMPORARY CHECKPOINT 2 SOLUTION TO LOAD IDLE PROGRAM
   int idle_stack_frame_1 = *(int*)queuePop(free_frame_queue);
-  int idle_stack_frame_2 = *(int*)queuePop(free_frame_queue);
   int stack_page_index = NUM_PAGES - 1;
   region_1_pages[stack_page_index].valid = 1;
   region_1_pages[stack_page_index].prot = PROT_READ | PROT_WRITE;
   region_1_pages[stack_page_index].pfn = idle_stack_frame_1;
-  region_1_pages[stack_page_index-1].valid = 1;
-  region_1_pages[stack_page_index-1].prot = PROT_READ | PROT_WRITE;
-  region_1_pages[stack_page_index-1].pfn = idle_stack_frame_2;
-  TracePrintf(1, "Frame index 1: %d\n", idle_stack_frame_1);
-  TracePrintf(1, "Frame index 2: %d\n", idle_stack_frame_2);
-  TracePrintf(1, "%d\n", region_1_pages[stack_page_index].pfn);
   int idle_pid = helper_new_pid(region_1_pages);
   usr_ctx->pc = &DoIdle;
   usr_ctx->sp = (void*) (VMEM_1_LIMIT - 4);
   pcb_t* idle_pcb = pcbNew(idle_pid, region_1_pages, NULL, usr_ctx, NULL, NULL);
-  TracePrintf(1, "Sucessfuly leaving kernel start\n");
-  TracePrintf(1, "Stack pointer: %p\n", usr_ctx->sp);
-  TracePrintf(1, "PC: %p\n", usr_ctx->pc);
-  TracePrintf(1, "PC Page: %d\n", ((int)usr_ctx->pc)/PAGESIZE);
-  TracePrintf(1, "stack pointer page %d\n", ((int)usr_ctx->sp)/PAGESIZE);
-  TracePrintf(1, "User stack page: validity: %lu, prot: %lu, pfn: %lu\n", region_1_pages[127].valid, region_1_pages[127].prot, region_1_pages[127].pfn);
 }
 
 /*
