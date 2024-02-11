@@ -426,6 +426,33 @@ ScheduleNextProcess()
   // return
 }
 
+void
+free_page_frame(int region, int page_no)
+{
+  if (region > 1 || region < 0) {
+    return;
+  }
+  void* vmem_addr = (region * VMEM_REGION_SIZE) + page_no*PAGESIZE;
+  if (!check_memory_validity(vmem_addr)) {
+    return;
+  }
+
+  memset(vmem_addr, 0, PAGESIZE);
+  pte_t* page_table_addr = NULL;
+  if (region == 0) {
+    page_table_addr = region_0_pages;
+  } else {
+    page_table_addr = region_1_pages;
+  }
+
+  int frame_no = page_table_addr[page_no].pfn;
+  page_table_addr[page_no].valid = 0;
+  page_table_addr[page_no].prot = 0;
+  int* stored_frame_no = (int*)malloc(sizeof(int));
+  *stored_frame_no = frame_no;
+  queuePush(free_frame_queue, stored_frame_no);
+}
+
 int
 LoadProgram(char *name, char *args[], pcb_t* proc) 
 
@@ -535,24 +562,25 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
    * the new program.  From this point on, we are committed to either
    * loading succesfully or killing the process.
    */
-
+  
   /*
    * Set the new stack pointer value in the process's UserContext
    */
-
-  /* 
-   * proc->usr_ctx.sp = cp2;
-   */
+   proc->usr_ctx->sp = cp2;
 
   /*
    * Now save the arguments in a separate buffer in region 0, since
    * we are about to blow away all of region 1.
    */
   cp2 = argbuf = (char *)malloc(size);
-
   /* 
    * ==>> You should perhaps check that malloc returned valid space 
    */
+  if (!check_memory_validity(argbuf)) {
+    TracePrintf(2, "Malloc failed in LoadProgram\n");
+    close(fd);
+    return ERROR;
+  }
 
   for (i = 0; args[i] != NULL; i++) {
     TracePrintf(3, "saving arg %d = '%s'\n", i, args[i]);
@@ -565,16 +593,58 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
    * program into memory.  Get the right number of physical pages
    * allocated, and set them all to writable.
    */
+  pte_t* new_process_pages = malloc(sizeof(pte_t)*NUM_PAGES);
+  for (int i = 0; i < NUM_PAGES; i ++) {
+    int region = 0;
+    if (i > text_pg1 && i < data_pg1) {
+      region = 1; // region 1 -> program text
+    } else if (i < data_pg1 + data_npg) {
+      region = 2;// region 1 -> program data
+    } else if (i >= (NUM_PAGES - stack_npg)) {
+      region = 4; // region 4 -> program stack
+    }
+
+    switch (region) {
+      case 1:
+        new_process_pages[i].valid = 1;
+        new_process_pages[i].pfn = *(int*)queuePop(free_frame_queue);
+        new_process_pages[i].prot = PROT_READ | PROT_WRITE;
+        break;
+      case 2:
+        new_process_pages[i].valid = 1;
+        new_process_pages[i].pfn = *(int*)queuePop(free_frame_queue);
+        new_process_pages[i].prot = PROT_READ | PROT_WRITE;
+        break;
+        break;
+      case 4:
+        new_process_pages[i].valid = 1;
+        new_process_pages[i].pfn = *(int*)queuePop(free_frame_queue);
+        new_process_pages[i].prot = PROT_READ | PROT_WRITE;
+        break;
+      default:
+        new_process_pages[i].valid = 0;
+        new_process_pages[i].prot = 0;
+        break;
+    }
+  }
 
   /* ==>> Throw away the old region 1 virtual address space by
    * ==>> curent process by walking through the R1 page table and,
    * ==>> for every valid page, free the pfn and mark the page invalid.
    */
+  for (int i = 0; i < NUM_PAGES; i ++) {
+    if (!region_1_pages[i].valid) {
+      continue;
+    }
+    free_page_frame(1, i);
+  }
 
   /*
    * ==>> Then, build up the new region1.  
    * ==>> (See the LoadProgram diagram in the manual.)
    */
+  memcpy(region_1_pages, new_process_pages, NUM_PAGES * sizeof(pte_t));
+  free(new_process_pages);
 
   /*
    * ==>> First, text. Allocate "li.t_npg" physical pages and map them starting at
@@ -600,6 +670,7 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
   /*
    * ==>> (Finally, make sure that there are no stale region1 mappings left in the TLB!)
    */
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 
   /*
    * All pages for the new address space are now in the page table.  
@@ -641,7 +712,12 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
    * ==>> If any of these page table entries is also in the TLB, 
    * ==>> you will need to flush the old mapping. 
    */
-
+  for (int i = text_pg1; i < data_pg1; i ++) {
+    if (!region_1_pages[i].valid) {
+      continue;
+    }
+    region_1_pages[i].prot = PROT_EXEC | PROT_READ;
+  }
 
   
   /*
@@ -657,6 +733,7 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
    * ==>> (rewrite the line below to match your actual data structure) 
    * ==>> proc->uc.pc = (caddr_t) li.entry;
    */
+  proc->usr_ctx->pc = (void*) li.entry;
 
   /*
    * Now, finally, build the argument list on the new stack.
