@@ -408,6 +408,9 @@ KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p)
     memory_cache_free(next_pcb->kernel_stack_data);
     next_pcb->kernel_stack_data = NULL;
   }
+  // reset tlb cache
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+
   // use the next_pcb's usr_ctx to populate the CPU registers and user stack -> again not sure this can happen yet
   // return the pointer to next_pcb_p's KernelContext stored in next_pcb_p->krn_ctx
   return next_pcb->krn_ctx;
