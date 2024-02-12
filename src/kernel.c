@@ -251,6 +251,16 @@ init_free_frame_queue()
   }
 }
 
+int
+count_cmd_args(char** cmd_args)
+{
+  int i = 0;
+  while (cmd_args[i] != NULL) {
+    i ++;
+  }
+  return i;
+}
+
 void
 KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
 {
@@ -319,6 +329,21 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   usr_ctx->pc = &DoIdle;
   usr_ctx->sp = (void*) (VMEM_1_LIMIT - 4);
   pcb_t* idle_pcb = pcbNew(idle_pid, region_1_pages, NULL, usr_ctx, NULL, NULL);
+
+  // CHECKPOINT 3 Psuedocode:
+  // parse command args to get the location of the init code -> if none provided then use default init.c
+  // Create the init pcb (using an empty page table, generated pid)
+  // Load the input program into the init pcb? -> can't do that yet apparently
+  // Use KCCopy to copy the current kernel context into the new pcb
+  // add the pcb to the ready queue
+  int num_args = count_cmd_args(cmd_args);
+  char* init_program_name = "init";
+  if (num_args > 0) {
+    init_program_name = cmd_args[0];
+  }
+
+  // int init_pid = helper_new_pid()
+  // pcb_t* init_pcb = pcbNew()
 }
 
 /*
