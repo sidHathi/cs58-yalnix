@@ -337,13 +337,32 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // Use KCCopy to copy the current kernel context into the new pcb
   // add the pcb to the ready queue
   int num_args = count_cmd_args(cmd_args);
+  TracePrintf(1, "%d command args parsed in KernelStart\n", num_args);
   char* init_program_name = "init";
   if (num_args > 0) {
     init_program_name = cmd_args[0];
   }
 
-  // int init_pid = helper_new_pid()
-  // pcb_t* init_pcb = pcbNew()
+  pte_t* empty_pages = malloc(sizeof(pte_t) * NUM_PAGES);
+  if (empty_pages == NULL) {
+    return;
+  }
+  TracePrintf(1, "Empty page table successfuly initialized\n");
+  for (int i = 0; i < NUM_PAGES; i ++) {
+    empty_pages[i].valid = 0;
+  }
+  int init_pid = helper_new_pid(empty_pages);
+  pcb_t* init_pcb = pcbNew(init_pid, empty_pages, NULL, usr_ctx, NULL, NULL);
+  TracePrintf(1, "Init pcb created\n");
+  KernelContextSwitch(&KCCopy, init_pcb, NULL);
+  TracePrintf(1, "KCCopy exited successfully\n");
+  KernelContextSwitch(&KCSwitch, idle_pcb, init_pcb);
+  TracePrintf(1, "KCSwitch exited successfully\n");
+  if (LoadProgram(init_program_name, cmd_args, idle_pcb) != 0) {
+    TracePrintf(1, "LoadProgram failed for init\n");
+    return;
+  }
+  free(empty_pages);
 }
 
 /*
@@ -424,15 +443,15 @@ KCCopy(KernelContext* kc_in, void* new_pcb_p, void* not_used)
     // these will lie from KERNEL_STACK_BASE until the last (highest) page in virtual memory -> each page will reference its frame number
   // copy them into new_pcb_p
   // return kc_in
+  TracePrintf(1, "Running KCCopy\n");
   if (!check_memory_validity(new_pcb_p)) {
     return NULL;
   }
   pcb_t* new_pcb = (pcb_t*)new_pcb_p;
-  if (!check_memory_validity(new_pcb->krn_ctx)) {
-    return NULL;
-  }
+  TracePrintf(1, "KCCopy Memory check passed\n");
 
   memcpy(new_pcb->krn_ctx, kc_in, sizeof(KernelContext));
+  TracePrintf(1, "Kernel context copied into pcb\n");
   if (new_pcb->kernel_stack_data != NULL && new_pcb->kernel_stack_data->cache_addr != NULL && check_memory_validity(new_pcb->kernel_stack_data->cache_addr)) {
     new_pcb->kernel_stack_data->original_addr = (void*)KERNEL_STACK_BASE;
     memory_cache_load(new_pcb->kernel_stack_data);
@@ -460,7 +479,7 @@ free_page_frame(int region, int page_no)
   if (region > 1 || region < 0) {
     return;
   }
-  void* vmem_addr = (region * VMEM_REGION_SIZE) + page_no*PAGESIZE;
+  void* vmem_addr = (void*)((region * VMEM_REGION_SIZE) + page_no*PAGESIZE);
   if (!check_memory_validity(vmem_addr)) {
     return;
   }

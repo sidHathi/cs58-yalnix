@@ -13,7 +13,7 @@ K_SRC_DIR = .
 
 # What are the kernel c and include files?
 K_SRCS = $(shell find ./ -name '*.c')
-K_INCS = $(shell find ./ -name '*.h') $(shell find ./syscall_handlers -name '*.h') $(shell find ./datastructures -name '*.h')
+K_INCS = $(shell find ./ -name '*.h')
 
 # Where's your user source?
 U_SRC_DIR = 
