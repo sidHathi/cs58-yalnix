@@ -17,7 +17,7 @@ extern queue_t* free_frame_queue;
 
 // global definitions for region 1 and 0 page tables -> stored in kernel data
 extern pte_t region_0_pages[NUM_PAGES];
-extern pte_t region_1_pages[NUM_PAGES];
+extern pte_t region_1_pages[NUM_PAGES]; // this is only used by the idle process
 
 // boolean that stores whether virtual memory is enabled
 extern unsigned int virtual_mem_enabled;

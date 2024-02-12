@@ -24,8 +24,7 @@ typedef struct pcb {
   memory_cache_t* kernel_stack_data; // array of frame numbers
 } pcb_t;
 
-pcb_t* pcbNew(int pid, pte_t* initial_page_table, pcb_t* parent, UserContext* initial_user_ctx, 
-KernelContext* krn_ctx, memory_cache_t* kernel_stack_data);
+pcb_t* pcbNew(int pid, pte_t* initial_page_table, pcb_t* parent, UserContext* initial_user_ctx, KernelContext* krn_ctx);
 
 void pcbFree(pcb_t* pcb);
 

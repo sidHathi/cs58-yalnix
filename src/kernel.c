@@ -40,7 +40,7 @@ pcb_t* current_process = NULL;
 static void shrink_heap_pages(int prev_top_page_idx, int new_top_page_idx);
 static void expand_heap_pages(int prev_top_page_idx, int new_top_page_idx);
 static void init_page_tables();
-static void init_free_frame_queue();
+static void init_free_frame_queue(unsigned int num_frames);
 
 /**
  * Helper function: iterates over page from the old top index
@@ -53,6 +53,7 @@ static void init_free_frame_queue();
 void
 shrink_heap_pages(int prev_top_page_idx, int new_top_page_idx)
 {
+  TracePrintf(1, "Moving kernelbrk from page %d to page %d\n", prev_top_page_idx, new_top_page_idx);
   for (int i = prev_top_page_idx; i > new_top_page_idx; i --) {
     if (!region_0_pages[i].valid) {
       continue;
@@ -83,7 +84,8 @@ expand_heap_pages(int prev_top_page_idx, int new_top_page_idx)
   // that has the page number
   // set the permissions for the page
   // mark as valid
-  for (int i = prev_top_page_idx; i < new_top_page_idx; i ++) {
+  TracePrintf(1, "Moving kernelbrk from page %d to page %d\n", prev_top_page_idx, new_top_page_idx);
+  for (int i = prev_top_page_idx; i <= new_top_page_idx; i ++) {
     int frame_no;
     if (virtual_mem_enabled) {
       frame_no = *(int*)queuePop(free_frame_queue);
@@ -120,7 +122,7 @@ SetKernelBrk(void* addr)
   // return 0 if succesful
 
   int curr_brk_page_idx = _orig_kernel_brk_page + kernel_brk_offset;
-  int suggested_brk_page_idx = UP_TO_PAGE(addr);
+  int suggested_brk_page_idx = UP_TO_PAGE(addr)/PAGESIZE;
   // check to make sure that the suggested brk is not below the original brk
   // check to make sure that the suggested brk is not above the stack start page
   // check to make sure that if the brk is shrinking, there's nothing in the pages that will now be above the brk
@@ -135,12 +137,14 @@ SetKernelBrk(void* addr)
   }
 
   if (suggested_brk_page_idx < curr_brk_page_idx) {
+    TracePrintf(1, "calling shrink_heap_pages\n");
     shrink_heap_pages(curr_brk_page_idx, suggested_brk_page_idx);
   } else {
+    TracePrintf(1, "calling expand_heap_pages\n");
     expand_heap_pages(curr_brk_page_idx, suggested_brk_page_idx);
   }
   
-  kernel_brk_offset = _orig_kernel_brk_page + suggested_brk_page_idx;
+  kernel_brk_offset = suggested_brk_page_idx - _orig_kernel_brk_page;
   return 0;
 }
 
@@ -221,7 +225,7 @@ init_page_tables()
  * be run before virtual memory is initialized
 */
 void
-init_free_frame_queue()
+init_free_frame_queue(unsigned int num_frames)
 {
   if (free_frame_queue == NULL) {
     TracePrintf(1, "attempting to use queue before initialization\n");
@@ -231,7 +235,7 @@ init_free_frame_queue()
   // determine its region in memory before virtual memory was initialized
   // based on this region, infer whether it is already being used
   // in region 0 memory. If not -> add to free frame queue
-  for (int frame = 0; frame < NUM_VPN; frame ++) {
+  for (int frame = 0; frame < num_frames; frame ++) {
     int frame_region = 0;
     if (frame < _first_kernel_text_page) {
       frame_region = 1;
@@ -268,7 +272,6 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // SetKernelBrk to some point far enough above origin to fit the entire queue
   // every frame above _first_kernel_data_page til max virtual pages should be added as a free frame -> only kernel text and below are being used
   virtual_mem_enabled = 0;
-  free_frame_queue = queueCreate();
   
   // 2. Set up page table for region 0
   // Involves looping to add each pte_t struct to the array
@@ -291,9 +294,12 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   WriteRegister(REG_PTLR0, NUM_PAGES);
   WriteRegister(REG_PTBR1, (unsigned int)region_1_pages);
   WriteRegister(REG_PTLR1, NUM_PAGES);
+
   // 3.5: Add every frame that isn't mapped in the region 0 page table
   // to the free frames queue
-  init_free_frame_queue();
+  free_frame_queue = queueCreate();
+  TracePrintf(1, "allocating queue for %d frames\n", pmem_size/PAGESIZE);
+  init_free_frame_queue(pmem_size/PAGESIZE);
   
   // 4. Enbale virtual memory by switching the register value in hardware + flush the TLB
   virtual_mem_enabled = 1;
@@ -316,26 +322,36 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
     TracePrintf(1, "Successfully registered trap handlers.\n");
   }
 
-  // 7. Build Idle process PCB and make it current_process
-  // To do: start the scheduler
-
-  // TEMPORARY CHECKPOINT 2 SOLUTION TO LOAD IDLE PROGRAM
-  int idle_stack_frame_1 = *(int*)queuePop(free_frame_queue);
+  // CHECKPOINT 3:
+  // Set up the idle pcb
+  int* idle_sf1_pointer = (int*)queuePop(free_frame_queue); // should switch this to a bit vector soon
+  // for now -> check to make sure that the free frame queue returned something
+  if (idle_sf1_pointer == NULL) {
+    TracePrintf(1, "empty free frame queue\n");
+    return;
+  }
+  int idle_stack_frame_1 = *idle_sf1_pointer;
+  // free the data allocated to store the frame number on the queue
+  free(idle_sf1_pointer);
   int stack_page_index = NUM_PAGES - 1;
-  region_1_pages[stack_page_index].valid = 1;
-  region_1_pages[stack_page_index].prot = PROT_READ | PROT_WRITE;
-  region_1_pages[stack_page_index].pfn = idle_stack_frame_1;
-  int idle_pid = helper_new_pid(region_1_pages);
+  // NEW IN CHECKPOINT 3: allocate a new page table for the idle process
+  pte_t* idle_pages = (pte_t*) malloc(sizeof(pte_t) * NUM_PAGES);
+  for (int i = 0; i < NUM_PAGES; i ++) {
+    idle_pages[i].valid = 0; // all invalid to start
+  }
+
+  // set up idle stack
+  idle_pages[stack_page_index].valid = 1;
+  idle_pages[stack_page_index].prot = PROT_READ | PROT_WRITE;
+  idle_pages[stack_page_index].pfn = idle_stack_frame_1;
+  int idle_pid = helper_new_pid(idle_pages);
+  // set user context for idle and copy it into idle's pcb
   usr_ctx->pc = &DoIdle;
   usr_ctx->sp = (void*) (VMEM_1_LIMIT - 4);
-  pcb_t* idle_pcb = pcbNew(idle_pid, region_1_pages, NULL, usr_ctx, NULL, NULL);
+  pcb_t* idle_pcb = pcbNew(idle_pid, idle_pages, NULL, usr_ctx, NULL);
+  TracePrintf(1, "Created idle pcb\n");
 
-  // CHECKPOINT 3 Psuedocode:
   // parse command args to get the location of the init code -> if none provided then use default init.c
-  // Create the init pcb (using an empty page table, generated pid)
-  // Load the input program into the init pcb? -> can't do that yet apparently
-  // Use KCCopy to copy the current kernel context into the new pcb
-  // add the pcb to the ready queue
   int num_args = count_cmd_args(cmd_args);
   TracePrintf(1, "%d command args parsed in KernelStart\n", num_args);
   char* init_program_name = "init";
@@ -343,26 +359,39 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
     init_program_name = cmd_args[0];
   }
 
-  pte_t* empty_pages = malloc(sizeof(pte_t) * NUM_PAGES);
-  if (empty_pages == NULL) {
+  // Create the init pcb (using an empty page table, generated pid)
+  pte_t* init_pages = malloc(sizeof(pte_t) * NUM_PAGES);
+  if (init_pages == NULL) {
     return;
   }
-  TracePrintf(1, "Empty page table successfuly initialized\n");
   for (int i = 0; i < NUM_PAGES; i ++) {
-    empty_pages[i].valid = 0;
+    init_pages[i].valid = 0; // before LoadProgram, they're all invalid
   }
-  int init_pid = helper_new_pid(empty_pages);
-  pcb_t* init_pcb = pcbNew(init_pid, empty_pages, NULL, usr_ctx, NULL, NULL);
-  TracePrintf(1, "Init pcb created\n");
-  KernelContextSwitch(&KCCopy, init_pcb, NULL);
-  TracePrintf(1, "KCCopy exited successfully\n");
-  KernelContextSwitch(&KCSwitch, idle_pcb, init_pcb);
-  TracePrintf(1, "KCSwitch exited successfully\n");
-  if (LoadProgram(init_program_name, cmd_args, idle_pcb) != 0) {
+
+  // get pid for new proccess
+  int init_pid = helper_new_pid(init_pages);
+  pcb_t* init_pcb = pcbNew(init_pid, init_pages, NULL, usr_ctx, NULL);
+  // Load the input program into the init pcb
+  if (LoadProgram(init_program_name, cmd_args, init_pcb) != 0) {
     TracePrintf(1, "LoadProgram failed for init\n");
     return;
   }
-  free(empty_pages);
+
+  // use the program counter, stack pointer from the newly loaded proc
+  TracePrintf(1, "Setting program counter to %d, stack pointer to %d\n", init_pcb->usr_ctx->pc, init_pcb->usr_ctx->sp);
+  usr_ctx->pc = init_pcb->usr_ctx->pc;
+  usr_ctx->sp = init_pcb->usr_ctx->sp;
+
+  // add the idle pcb to the ready queue
+  queuePush(process_ready_queue, idle_pcb);
+  num_ready_processes ++;
+
+  // set the current process
+  current_process = init_pcb;
+
+  // Use KCCopy to copy the current kernel context into the new pcb
+  KernelContextSwitch(&KCCopy, idle_pcb, NULL);
+  TracePrintf(1, "KCCopy exited successfully\n");
 }
 
 /*
@@ -409,24 +438,29 @@ KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p)
     return NULL;
   }
   // copy the bytes from kc_in into the curr_pcb_p's krn_ctx
+  if (curr_pcb->krn_ctx == NULL) {
+    curr_pcb->krn_ctx = (KernelContext*) malloc(sizeof(KernelContext));
+  }
   memcpy(curr_pcb->krn_ctx, kc_in, sizeof(KernelContext));
   // copy the current region one page table into curr_pcb_p's page_table
-  memcpy(curr_pcb->page_table, region_1_pages, NUM_PAGES*sizeof(pte_t));
+  void* curr_region_1_pages = (void*) ReadRegister(REG_PTBR1);
+  memcpy(curr_pcb->page_table, curr_region_1_pages, NUM_PAGES*sizeof(pte_t));
   // store the contents of the CPU registers into the curr_pcb_p usr_ctx -> this needs to get done in the trap actually
 
   // Get the frame numbers for the kernel's stack using the region 0 page table ->
     // these will lie from KERNEL_STACK_BASE until the last (highest) page in virtual memory -> each page will reference its frame number
-  void* kernel_stack_addr = (void*)KERNEL_STACK_BASE;
-  memory_cache_t* kernel_cache = memory_cache_new(KERNEL_STACK_MAXSIZE/PAGESIZE, kernel_stack_addr);
-  memory_cache_load(kernel_cache);
-  curr_pcb->kernel_stack_data = kernel_cache;
+  if (curr_pcb->kernel_stack_data != NULL) {
+    void* kernel_stack_addr = (void*)KERNEL_STACK_BASE;
+    curr_pcb->kernel_stack_data->original_addr = kernel_stack_addr;
+    memory_cache_load(curr_pcb->kernel_stack_data);
+  }
   // get the kernel stack frame numbers stored in next_pcb_p
   // use them to change the current region zero frame numbers for the stack pages to the ones stored in next_pcb_p
   if (next_pcb->kernel_stack_data != NULL) {
     memory_cache_restore(next_pcb->kernel_stack_data);
-    memory_cache_free(next_pcb->kernel_stack_data);
-    next_pcb->kernel_stack_data = NULL;
   }
+  // switch region 1 page table
+  WriteRegister(REG_PTBR1, (unsigned int)next_pcb->page_table);
   // reset tlb cache
   WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 
@@ -450,17 +484,20 @@ KCCopy(KernelContext* kc_in, void* new_pcb_p, void* not_used)
   pcb_t* new_pcb = (pcb_t*)new_pcb_p;
   TracePrintf(1, "KCCopy Memory check passed\n");
 
+  if (new_pcb->krn_ctx == NULL) {
+    new_pcb->krn_ctx = (KernelContext*) malloc(sizeof(KernelContext));
+  }
   memcpy(new_pcb->krn_ctx, kc_in, sizeof(KernelContext));
   TracePrintf(1, "Kernel context copied into pcb\n");
   if (new_pcb->kernel_stack_data != NULL && new_pcb->kernel_stack_data->cache_addr != NULL && check_memory_validity(new_pcb->kernel_stack_data->cache_addr)) {
+    TracePrintf(1, "Loading existing memory cache\n");
     new_pcb->kernel_stack_data->original_addr = (void*)KERNEL_STACK_BASE;
     memory_cache_load(new_pcb->kernel_stack_data);
   } else {
-    memory_cache_t* new_cache = memory_cache_new(KERNEL_STACK_MAXSIZE/PAGESIZE, (void*)KERNEL_STACK_BASE);
-    memory_cache_load(new_cache);
-    new_pcb->kernel_stack_data = new_cache;
+    TracePrintf(1, "Memory cache not initialized -> unable to store kernel stack frames\n");
   }
 
+  TracePrintf(1, "Exiting KCCopy\n");
   return kc_in;
 }
 
@@ -623,7 +660,7 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
   /* 
    * ==>> You should perhaps check that malloc returned valid space 
    */
-  if (!check_memory_validity(argbuf)) {
+  if (argbuf == NULL || !check_memory_validity(argbuf)) {
     TracePrintf(2, "Malloc failed in LoadProgram\n");
     close(fd);
     return ERROR;
@@ -679,8 +716,9 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
    * ==>> curent process by walking through the R1 page table and,
    * ==>> for every valid page, free the pfn and mark the page invalid.
    */
+  pte_t* curr_region_1_pages = (pte_t*) ReadRegister(REG_PTBR1);
   for (int i = 0; i < NUM_PAGES; i ++) {
-    if (!region_1_pages[i].valid) {
+    if (!curr_region_1_pages[i].valid) {
       continue;
     }
     free_page_frame(1, i);
@@ -690,8 +728,9 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
    * ==>> Then, build up the new region1.  
    * ==>> (See the LoadProgram diagram in the manual.)
    */
-  memcpy(region_1_pages, new_process_pages, NUM_PAGES * sizeof(pte_t));
+  memcpy(proc->page_table, new_process_pages, NUM_PAGES * sizeof(pte_t));
   free(new_process_pages);
+  WriteRegister(REG_PTBR1, (unsigned int) proc->page_table);
 
   /*
    * ==>> First, text. Allocate "li.t_npg" physical pages and map them starting at
@@ -760,13 +799,13 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
    * ==>> you will need to flush the old mapping. 
    */
   for (int i = text_pg1; i < data_pg1; i ++) {
-    if (!region_1_pages[i].valid) {
+    if (!proc->page_table[i].valid) {
       continue;
     }
-    region_1_pages[i].prot = PROT_EXEC | PROT_READ;
+    proc->page_table[i].prot = PROT_EXEC | PROT_READ;
   }
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 
-  
   /*
    * Zero out the uninitialized data area
    */

@@ -16,10 +16,10 @@ K_SRCS = $(shell find ./ -name '*.c')
 K_INCS = $(shell find ./ -name '*.h')
 
 # Where's your user source?
-U_SRC_DIR = 
+U_SRC_DIR = ../
 
 # What are the user c and include files?
-U_SRCS = 
+U_SRCS = init.c
 U_INCS = 
 
 

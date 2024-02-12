@@ -10,11 +10,15 @@ memory_cache_new(int num_pages, void* stack_addr)
   new_memory_cache->num_pages = num_pages;
   new_memory_cache->original_addr = stack_addr;
   new_memory_cache->cache_addr = malloc(PAGESIZE * num_pages);
+  return new_memory_cache;
 }
 
 void
 memory_cache_load(memory_cache_t* memory_cache)
 {
+  if (memory_cache->cache_addr == NULL) {
+    memory_cache->cache_addr = malloc(PAGESIZE * memory_cache->num_pages);
+  }
   memcpy(memory_cache->cache_addr, memory_cache->original_addr, memory_cache->num_pages * PAGESIZE);
 }
 
