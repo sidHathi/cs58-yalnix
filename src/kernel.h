@@ -4,6 +4,7 @@
 #include <yalnix.h>
 #include <hardware.h>
 #include "datastructures/queue.h"
+#include "datastructures/linked_list.h"
 #include "datastructures/pcb.h"
 
 #define MAX_PROCESSES 128
@@ -14,6 +15,9 @@ extern char* tty_buffers[NUM_TERMINALS];
 
 // global definition for free frame queue pointer -> actual queue lives in kernel heap
 extern queue_t* free_frame_queue;
+
+// global definitions for a delayQueue, processes that are in this queue are to be blocked for the number of clock ticks
+extern linked_list_t* delay_list;
 
 // global definitions for region 1 and 0 page tables -> stored in kernel data
 extern pte_t region_0_pages[NUM_PAGES];

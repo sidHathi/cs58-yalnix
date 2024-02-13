@@ -3,6 +3,7 @@
 #include <yuser.h>
 #include <hardware.h>
 #include "datastructures/queue.h"
+#include "datastructures/linked_list.h"
 #include "kernel.h"
 #include <ykernel.h>
 #include <load_info.h>
@@ -29,6 +30,7 @@ unsigned int num_ready_processes = 0;
 unsigned int num_dead_processes = 0;
 char* tty_buffers[NUM_TERMINALS];
 queue_t* free_frame_queue = NULL;
+linked_list_t* delay_list = NULL; //might need to initialize this somewhere.
 pte_t region_0_pages[VMEM_REGION_SIZE/PAGESIZE];
 pte_t region_1_pages[VMEM_REGION_SIZE/PAGESIZE];
 queue_t* process_ready_queue = NULL;
