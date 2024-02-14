@@ -22,7 +22,6 @@ typedef struct pcb {
 	pte_t* page_table;
 	UserContext* usr_ctx;
   KernelContext* krn_ctx; // stored on process switch
-  memory_cache_t* kernel_stack_data; // array of frame numbers
 	pte_t* kernel_stack_pages;
 } pcb_t;
 
