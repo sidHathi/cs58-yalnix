@@ -1,8 +1,9 @@
-#include "../../yalnix_framework/include/yalnix.h"
-#include "../../yalnix_framework/include/ykernel.h"
-#include "../../yalnix_framework/include/hardware.h"
+#include <yalnix.h>
+#include <ykernel.h>
+#include <hardware.h>
 #include "traps.h"
 #include "kernel.h"
+#include "syscall_handlers/process_coordination.h"
 
 // Trap handler for TRAP_KERNEL
 void TrapKernelHandler(UserContext* user_context) {
@@ -14,6 +15,18 @@ void TrapKernelHandler(UserContext* user_context) {
 
   // Checkpoint 2 functionality:
   TracePrintf(1, "Trap Kernel! Code: %x\n", user_context->code);
+
+  // Checkpoint 3:
+  switch (user_context->code)
+  {
+    case YALNIX_DELAY:
+      TracePrintf(1, "Yalnix delay with %d\n", user_context->regs[0]);
+      KernelDelay(user_context->regs[0]);
+      break;
+    default:
+      TracePrintf(1, "Oops! Invalid Trap Kernel Code %x\n", user_context->code);
+      Halt();
+  }
 }
 
 // Trap handler for TRAP_CLOCK
@@ -26,6 +39,26 @@ void TrapClockHandler(UserContext* user_context) {
 
   // Checkpoint 2 functionality:
   TracePrintf(1, "Trap Clock!\n");
+
+  // Checkpoint 3
+
+  // Decrement delay count for all delayed processes. If any get to 0,  move them to the ready queue
+  lnode_t* delay_node = delay_list->front;
+  TracePrintf(1, "Looking at delay list proccess %d\n", delay_node->key);
+  while (delay_node != NULL) {
+    ((delay_node_data_t*)delay_node->data)->clock_ticks--;
+    if (((delay_node_data_t*)delay_node->data) == 0) {
+      delay_node_data_t* data = (delay_node_data_t*)delay_node->data;
+      TracePrintf(1, "Moving %s from delay list to ready queue\n", delay_node->key);
+      linked_list_remove(delay_list, (int)((delay_node_data_t*)delay_node->key));
+      queuePush(process_ready_queue, data);
+    }
+    delay_node = delay_node->next;
+  }
+
+  // Invoke scheduler
+  TracePrintf(1, "Invoking scheduler\n");
+  ScheduleNextProcess();
 }
 
 // Trap handler for TRAP_ILLEGAL

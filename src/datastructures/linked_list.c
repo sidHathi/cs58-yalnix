@@ -2,12 +2,6 @@
 #include <hardware.h>
 #include <ylib.h>
 
-// Linked List data structure
-typedef struct linked_list {
-	lnode_t *front, *rear;	// Pointers to front and back of queue
-	int next_key;						// Key to assign to next node that gets enqueued
-} linked_list_t;
-
 //type def for a function passed as a parameter to free a LL for any data type
 
 
@@ -53,7 +47,7 @@ void* linked_list_remove(linked_list_t* ll, int key) {
   lnode_t* curr = ll->front;
   while(curr->key != key) {
     if (curr == NULL)  {
-      return ERROR;
+      return NULL;
     }
   }
   curr->prev->next = curr->next;

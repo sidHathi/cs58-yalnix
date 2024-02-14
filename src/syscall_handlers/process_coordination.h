@@ -1,5 +1,6 @@
-#include "../../../yalnix_framework/include/yalnix.h"
-#include "../../../yalnix_framework/include/ykernel.h"
+#include <yalnix.h>
+#include <ykernel.h>
+#include "../datastructures/linked_list.h"
 
 /*
 * Fork:
@@ -86,7 +87,6 @@ int GetPidHandler(void);
 * or if the address addr is invalid), the value ERROR is returned.
 */
 int KernelBrk(void* addr);
-
 
 /*
 * Delay:

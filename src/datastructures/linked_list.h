@@ -4,18 +4,7 @@
 #include <yalnix.h>
 #include <hardware.h>
 
-// Generic Linked List Structure
-// Source: https://www.geeksforgeeks.org/queue-linked-list-implementation/#
-// Modified to suit our needs
-
-//data struct to hold the void* data but for the delayqueue version
-typedef struct DelayNode {
-    void *clock_ticks;
-    void *process;
-} DelayNode_t;
-
-// A linked list (LL) node to store a queue entry
-
+// A linked list (LL) node to store an entry
 /*
 * Note here we might want to switch to the pid being used depending on full funcitonality of this LL
 * As of now I am unsure as to how one would obtain that ID without using somthing like the PID
@@ -28,7 +17,7 @@ typedef struct lnode {
 	void* data;			// Pointer to data of current node
 } lnode_t;
 
-// Queue data structure
+// Linked List data structure
 typedef struct linked_list {
 	lnode_t *front, *rear;	// Pointers to front and back of queue
 	int next_key;						// Key to assign to next node that gets enqueued

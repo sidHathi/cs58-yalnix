@@ -1,8 +1,9 @@
-#include "../../../yalnix_framework/include/yalnix.h"
-#include "../../../yalnix_framework/include/ykernel.h"
-#include "cs58-yalnix/src/kernel.h"
+#include <yalnix.h>
+#include <ykernel.h>
+#include "../kernel.h"
 #include "../datastructures/pcb.h"
 #include "../datastructures/linked_list.h"
+#include "process_coordination.h"
 
 
 int ForkHandler(void) {
@@ -21,7 +22,7 @@ int ForkHandler(void) {
   return 0;
 }
 
-int ExecHandler(char* filename, char** argvec, int argc) {
+int ExecHandler(char* filename, char** argvec) {
   
   // clear current process memory
   // execute filename argvec[1]...argvec[n]
@@ -60,7 +61,7 @@ int GetPidHandler(void) {
   // find the pcb for this process
   // index into the pcb and find the where the PID is stored- don't know the exact location yet
   // return pid
-  return ((pcb_t *)(current_process->pid));
+  return current_process->pid;
 }
 
 int KernelBrk(void* addr) {
@@ -87,12 +88,14 @@ int KernelBrk(void* addr) {
   return 0;
 }
 
-int DelayHandler(int clock_ticks) {
+
+
+int KernelDelay(int clock_ticks) {
   // sleep for the number of clock ticks provided on this current process only
   // return and allow process to continue after the delay
   // on success should return 0
   // return ERROR if clock_ticks is less than 0, or time is improperly carried out
-
+  TracePrintf(1, "Here %d\n", clock_ticks);
   if(clock_ticks == 0) {
     return 0;
   }
@@ -102,11 +105,11 @@ int DelayHandler(int clock_ticks) {
   }
   else {
     // make the current process sleep for the number of clock ticks.
-    DelayNode_t* delay_node;
-    delay_node->clock_ticks = clock_ticks;
-    delay_node->process = current_process;
+    delay_node_data_t* data = (delay_node_data_t*) malloc(sizeof(delay_node_data_t));
+    data->clock_ticks = clock_ticks;
+    data->process = current_process->pid;
 
-    liniked_list_push(delay_list, delay_node);
+    linked_list_push(delay_list, data);
 
     //might need a scheduler call here for the actual delaying of the process that has now been stored in the queue;
 

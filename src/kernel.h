@@ -1,5 +1,5 @@
 #ifndef _kernel_h
-#define _kenel_h
+#define _kernel_h
 
 #include <yalnix.h>
 #include <hardware.h>
@@ -9,6 +9,14 @@
 
 #define MAX_PROCESSES 128
 #define NUM_PAGES VMEM_REGION_SIZE/PAGESIZE
+
+//data struct to hold the void* data for the linked list of delayed processes
+typedef struct delay_node_data {
+  int clock_ticks;
+  int process;
+} delay_node_data_t;
+
+extern linked_list_t* delay_list;
 
 // Array of strings for kernel to store input from the terminals
 extern char* tty_buffers[NUM_TERMINALS];
@@ -39,13 +47,13 @@ extern queue_t* process_ready_queue;
 extern unsigned int num_blocked_processes;
 
 // array stores pointers to pcbs of blocked processes PCBs
-extern pcb_t** process_blocked_arr;
+extern linked_list_t* process_blocked_arr;
 
 // number of dead processes
 extern unsigned int num_dead_processes;
 
 // array that stores pointers to pcbs of dead processes
-extern pcb_t** process_dead_arr;
+extern linked_list_t* process_dead_arr;
 
 // currently running process
 extern pcb_t* current_process;

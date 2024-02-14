@@ -30,13 +30,14 @@ unsigned int num_ready_processes = 0;
 unsigned int num_dead_processes = 0;
 char* tty_buffers[NUM_TERMINALS];
 queue_t* free_frame_queue = NULL;
-linked_list_t* delay_list = NULL; //might need to initialize this somewhere.
+linked_list_t* delay_list = NULL;
 pte_t region_0_pages[VMEM_REGION_SIZE/PAGESIZE];
 pte_t region_1_pages[VMEM_REGION_SIZE/PAGESIZE];
 queue_t* process_ready_queue = NULL;
-pcb_t** process_blocked_arr = NULL;
-pcb_t** process_dead_arr = NULL;
+linked_list_t* process_blocked_arr = NULL;
+linked_list_t* process_dead_arr = NULL;
 pcb_t* current_process = NULL;
+
 
 // local helper function prototyes
 static void shrink_heap_pages(int prev_top_page_idx, int new_top_page_idx);
@@ -325,6 +326,9 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   }
 
   // CHECKPOINT 3:
+  // Set up empty delay linked list
+  delay_list = linked_list_create();
+
   // Set up the idle pcb
   int* idle_sf1_pointer = (int*)queuePop(free_frame_queue); // should switch this to a bit vector soon
   // for now -> check to make sure that the free frame queue returned something
@@ -395,18 +399,6 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   KernelContextSwitch(&KCCopy, idle_pcb, NULL);
   TracePrintf(1, "KCCopy exited successfully\n");
 }
-
-/*
-// struct user_context {
-//   int vector;		/* vector number */
-//   int code;		/* additional "code" for vector */
-//   void *addr;		/* offending address, if any */
-//   void *pc;		/* PC at time of exception */
-//   void *sp;		/* SP at time of exception */
-//   void *ebp;              // base pointer at time of exception
-//   u_long regs[GREGS];     /* general registers at time of exception */
-// };
-// */
 
 unsigned int
 check_memory_validity(void* pointer_addr)
@@ -510,6 +502,15 @@ ScheduleNextProcess()
   // otherwise, pop a pcb from the ready queue
   // call KernelContextSwitch with KCSwitch, the current pcb, and the popped pcb as its three parameters respectively
   // return
+  
+  // Checkpoint 3:
+  // Move head of ready queue to current process and push current process to ready queue
+  pcb_t* next_process = (pcb_t*) process_ready_queue->front->data;
+  if (next_process != NULL) {
+    queuePush(process_ready_queue, current_process);
+    current_process = next_process;
+  }
+
 }
 
 void
