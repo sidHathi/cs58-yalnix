@@ -311,9 +311,9 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // 5. Allocate ready, blocked, and dead queues using queue_new functions
   process_ready_queue = queueCreate();
   num_ready_processes = 0;
-  process_blocked_arr = malloc(sizeof(pcb_t*) * MAX_PROCESSES);
+  process_blocked_arr = linked_list_create();
   num_blocked_processes = 0;
-  process_dead_arr = malloc(sizeof(pcb_t*) * MAX_PROCESSES);
+  process_dead_arr = linked_list_create();
   num_dead_processes = 0;
   current_process = NULL;
 
@@ -424,6 +424,7 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
 
   // Use KCCopy to copy the current kernel context into the new pcb
   KernelContextSwitch(&KCCopy, idle_pcb, NULL);
+  TracePrintf(1, "curr pcb pid %d\n", current_process->pid);
   TracePrintf(1, "KCCopy exited successfully\n");
 
   memcpy(usr_ctx, current_process->usr_ctx, sizeof(UserContext));
@@ -493,35 +494,10 @@ KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p)
   helper_check_heap("after stack frames swapped");
   WriteRegister(REG_PTBR1, (unsigned int) next_pcb->page_table);
   WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_ALL);
+  current_process = next_pcb;
+  queuePush(process_ready_queue, curr_pcb);
   helper_check_heap("end of kcswitch");
 
-  // copy the current region one page table into curr_pcb_p's page_table
-  // void* curr_region_1_pages = (void*) ReadRegister(REG_PTBR1);
-  // memcpy(curr_pcb->page_table, curr_region_1_pages, NUM_PAGES*sizeof(pte_t));
-  // store the contents of the CPU registers into the curr_pcb_p usr_ctx -> this needs to get done in the trap actually
-
-  // Get the frame numbers for the kernel's stack using the region 0 page table ->
-    // these will lie from KERNEL_STACK_BASE until the last (highest) page in virtual memory -> each page will reference its frame number
-  // helper_check_heap("before");
-  // void* kernel_stack_addr = (void*)KERNEL_STACK_BASE;
-  // if (curr_pcb->kernel_stack_data != NULL) {
-  //   curr_pcb->kernel_stack_data->original_addr = kernel_stack_addr;
-  //   memory_cache_load(curr_pcb->kernel_stack_data);
-  // }
-  // // get the kernel stack frame numbers stored in next_pcb_p
-  // // use them to change the current region zero frame numbers for the stack pages to the ones stored in next_pcb_p
-  // if (next_pcb->kernel_stack_data != NULL) {
-  //   next_pcb->kernel_stack_data->original_addr = kernel_stack_addr;
-  //   memory_cache_restore(next_pcb->kernel_stack_data);
-  // }
-  // helper_check_heap("after");
-  // switch region 1 page table
-  // reset tlb cache
-
-  
-
-  // use the next_pcb's usr_ctx to populate the CPU registers and user stack -> again not sure this can happen yet
-  // return the pointer to next_pcb_p's KernelContext stored in next_pcb_p->krn_ctx
   return next_pcb->krn_ctx;
 }
 
@@ -545,15 +521,6 @@ KCCopy(KernelContext* kc_in, void* new_pcb_p, void* not_used)
   }
   memcpy(new_pcb->krn_ctx, kc_in, sizeof(KernelContext));
   TracePrintf(1, "Kernel context copied into pcb\n");
-  // if (new_pcb->kernel_stack_data != NULL && new_pcb->kernel_stack_data->cache_addr != NULL && check_memory_validity(new_pcb->kernel_stack_data->cache_addr)) {
-  //   TracePrintf(1, "Loading existing memory cache\n");
-  //   new_pcb->kernel_stack_data->original_addr = (void*)KERNEL_STACK_BASE;
-  //   memory_cache_load(new_pcb->kernel_stack_data);
-  // } else {
-  //   TracePrintf(1, "Memory cache not initialized -> unable to store kernel stack frames\n");
-  // }
-
-  // memcpy(new_pcb->kernel_stack_pages, region_0_pages + sizeof(pte_t) * (NUM_PAGES - NUM_KSTACK_FRAMES - 1), NUM_KSTACK_FRAMES*sizeof(pte_t));
 
   // copy data into the pages
   // put the old pages back
@@ -594,11 +561,7 @@ ScheduleNextProcess(UserContext* user_context)
   TracePrintf(1, "Entering scheduler \n");
   pcb_t* next_process = (pcb_t*) queuePop(process_ready_queue);
   if (next_process != NULL) {
-    queuePush(process_ready_queue, current_process);
     KernelContextSwitch(&KCSwitch, current_process, next_process);
-    user_context->pc = next_process->usr_ctx->pc;
-    user_context->sp = next_process->usr_ctx->sp;
-    current_process = next_process;
   }
   TracePrintf(1, "Leaving scheduler \n");
 }
@@ -776,7 +739,7 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
     int region = 0;
     if (i > text_pg1 && i < data_pg1) {
       region = 1; // region 1 -> program text
-    } else if (i < data_pg1 + data_npg) {
+    } else if (i < data_pg1 + data_npg) { // data_pg1 + data_npg is index of last page in heap
       region = 2;// region 1 -> program data
     } else if (i >= (NUM_PAGES - stack_npg)) {
       region = 4; // region 4 -> program stack
@@ -816,6 +779,9 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
     free(ff2_p);
     free(ff3_p);
   }
+
+  // set brk for new process:
+  // proc->brk = data_pg1 + data_npg + 1;
 
   /* ==>> Throw away the old region 1 virtual address space by
    * ==>> curent process by walking through the R1 page table and,
