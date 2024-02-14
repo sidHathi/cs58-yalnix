@@ -107,7 +107,7 @@ int KernelDelay(int clock_ticks) {
     // make the current process sleep for the number of clock ticks.
     delay_node_data_t* data = (delay_node_data_t*) malloc(sizeof(delay_node_data_t));
     data->clock_ticks = clock_ticks;
-    data->process = current_process->pid;
+    data->pid = current_process->pid;
 
     linked_list_push(delay_list, data);
 
