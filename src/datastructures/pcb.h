@@ -10,6 +10,7 @@
 #define BLOCKED 1
 #define RUNNING 2
 #define DEAD 3
+#define NUM_KSTACK_FRAMES KERNEL_STACK_MAXSIZE/PAGESIZE
 
 typedef struct pcb pcb_t;
 
@@ -22,6 +23,7 @@ typedef struct pcb {
 	UserContext* usr_ctx;
   KernelContext* krn_ctx; // stored on process switch
   memory_cache_t* kernel_stack_data; // array of frame numbers
+	pte_t kernel_stack_pages[NUM_KSTACK_FRAMES];
 } pcb_t;
 
 pcb_t* pcbNew(int pid, pte_t* initial_page_table, pcb_t* parent, UserContext* initial_user_ctx, KernelContext* krn_ctx);

@@ -22,7 +22,9 @@ void
 queuePush(queue_t* q, void* data)
 {	
 	// Allocate memory for new node
+  helper_check_heap("eentering queue push");
 	qnode_t* new_node = (qnode_t*) malloc(sizeof(qnode_t));
+  helper_check_heap("queue node allocation");
 	new_node->data = data;
 	new_node->key = q->next_key;
 	new_node->next = NULL;
@@ -39,6 +41,7 @@ queuePush(queue_t* q, void* data)
 
 	// Increment next_key
 	q->next_key++;
+  helper_check_heap("exiting queue push");
 }
 
 // Dequeue front node

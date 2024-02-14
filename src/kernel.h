@@ -13,7 +13,7 @@
 //data struct to hold the void* data for the linked list of delayed processes
 typedef struct delay_node_data {
   int clock_ticks;
-  int process;
+  int pid;
 } delay_node_data_t;
 
 extern linked_list_t* delay_list;
