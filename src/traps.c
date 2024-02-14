@@ -84,6 +84,7 @@ void TrapClockHandler(UserContext* user_context) {
   // helper_check_heap("before");
   ScheduleNextProcess(user_context);
   // helper_check_heap("after");
+  memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
 }
 
 // Trap handler for TRAP_ILLEGAL

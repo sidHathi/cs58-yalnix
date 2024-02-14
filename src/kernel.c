@@ -426,8 +426,7 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   KernelContextSwitch(&KCCopy, idle_pcb, NULL);
   TracePrintf(1, "KCCopy exited successfully\n");
 
-  usr_ctx->pc = current_process->usr_ctx->pc;
-  usr_ctx->sp = current_process->usr_ctx->sp;
+  memcpy(usr_ctx, current_process->usr_ctx, sizeof(UserContext));
 }
 
 unsigned int
@@ -471,6 +470,7 @@ KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p)
   }
   memcpy(curr_pcb->krn_ctx, kc_in, sizeof(KernelContext));
   TracePrintf(1, "Kernel context copied\n");
+  helper_check_heap("after krn_ctx copied");
 
   // memcpy(
   //   curr_pcb->kernel_stack_pages,
@@ -480,6 +480,7 @@ KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p)
   for (int i = 0; i < (int)NUM_KSTACK_FRAMES; i ++) {
     curr_pcb->kernel_stack_pages[i] = region_0_pages[(NUM_PAGES - NUM_KSTACK_FRAMES) + i];
   }
+  helper_check_heap("after first swap");
 
   // memcpy(
   //   (void*) &region_0_pages[NUM_PAGES - NUM_KSTACK_FRAMES],
@@ -489,8 +490,10 @@ KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p)
   for (int i = 0; i < (int)NUM_KSTACK_FRAMES; i ++) {
     region_0_pages[(NUM_PAGES - NUM_KSTACK_FRAMES) + i] = next_pcb->kernel_stack_pages[i];
   }
+  helper_check_heap("after stack frames swapped");
   WriteRegister(REG_PTBR1, (unsigned int) next_pcb->page_table);
   WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_ALL);
+  helper_check_heap("end of kcswitch");
 
   // copy the current region one page table into curr_pcb_p's page_table
   // void* curr_region_1_pages = (void*) ReadRegister(REG_PTBR1);

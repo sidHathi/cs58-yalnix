@@ -19,6 +19,7 @@ pcbNew(int pid, pte_t* initial_page_table, pcb_t* parent, UserContext* initial_u
   new_pcb->usr_ctx = (UserContext*) malloc(sizeof(UserContext));
   memcpy(new_pcb->usr_ctx, initial_user_ctx, sizeof(UserContext));
   new_pcb->krn_ctx = krn_ctx;
+  new_pcb->kernel_stack_pages = malloc(sizeof(pte_t) * NUM_KSTACK_FRAMES);
   memory_cache_t* kernel_stack_frames = memory_cache_new(KERNEL_STACK_MAXSIZE/PAGESIZE, (void*) KERNEL_STACK_BASE);
 
   // Need to set this later, and figure out. NULL for now.
