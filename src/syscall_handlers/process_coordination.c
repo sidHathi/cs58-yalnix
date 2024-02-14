@@ -64,7 +64,7 @@ int GetPidHandler(void) {
   return current_process->pid;
 }
 
-int KernelBrk(void* addr) {
+int BrkHandler(void* addr) {
   // find the lowest point of memory in the stack
   // set this point to addr
   // note that this pointshould be rounded up to the next multiple of PAGESIZE bytes.
@@ -76,14 +76,45 @@ int KernelBrk(void* addr) {
   // PAGESHIFT;
   // DOWN_TO_PAGE;
 
-  // check if brk into or past user stack
+  // check if brk past user stack
   if (DOWN_TO_PAGE(current_process->usr_ctx->sp) >> PAGESHIFT <= (unsigned int)addr) {
-    TracePrintf(1, "Error: KernelBrk trying to go into user stack\n");
+    TracePrintf(1, "Error: BrkHandler trying to go into user stack\n");
     return ERROR;
   }
+  // check iif addr is above or below the current brk
+  if ((unsigned int)addr > current_process->current_brk) {
+    for(int i = current_process->current_brk >> PAGESHIFT + 1; i <= DOWN_TO_PAGE(addr)>>PAGESHIFT; i++) {	
+	    int pt_index = i - MAX_PT_LEN;
+	    
+	    if(current_process->page_table[pt_index].valid == 0) {		    
+		    int allocated_frame = queuePop(free_frame_queue);
 
-  
-
+		    if(allocated_frame == ERROR) {
+          return ERROR;
+        }
+		    
+		    else {
+          TracePrintf(1, "BrkHandler: Allocating page %d\n", pt_index);
+          current_process->page_table[pt_index].valid = 1;
+          current_process->page_table[pt_index].prot = PROT_READ | PROT_WRITE;
+          current_process->page_table[pt_index].pfn = allocated_frame;
+        }
+	    }
+	  }	
+  }
+  else {
+    for (int i = (unsigned int)addr >> PAGESHIFT + 1; DOWN_TO_PAGE(current_process->current_brk) >> PAGESHIFT; i++) {
+      int pt_index = i - MAX_PT_LEN;
+      
+      if(current_process->page_table[pt_index].valid = 1) {
+        region_0_pages[pt_index].valid = 0;
+        int* curr_frame_number = region_0_pages[pt_index].pfn;
+        queuePush(free_frame_queue, curr_frame_number);
+        WriteRegister(REG_TLB_FLUSH, i << PAGESHIFT); // I think we need this in here, but I am unsure why, 
+      }
+    }
+	      
+	}
 
   return 0;
 }
