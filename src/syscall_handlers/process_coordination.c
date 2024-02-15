@@ -83,15 +83,15 @@ int BrkHandler(void* addr) {
     for(int pt_index = first_invalid_page_index; pt_index <= addr_page_index; pt_index++) {	
 	    
 	    if(current_process->page_table[pt_index].valid == 0) {		    
-		    int allocated_frame = queuePop(free_frame_queue);
+		    int* allocated_frame = (int*) queuePop(free_frame_queue);
 
-		    if(allocated_frame == ERROR) {
+		    if(allocated_frame == NULL) {
           return ERROR;
         }
         TracePrintf(1, "BrkHandler: Allocating page %d\n", pt_index);
         current_process->page_table[pt_index].valid = 1;
         current_process->page_table[pt_index].prot = PROT_READ | PROT_WRITE;
-        current_process->page_table[pt_index].pfn = allocated_frame;
+        current_process->page_table[pt_index].pfn = *allocated_frame;
 	    }
       else {
         TracePrintf(1, "Issue Setting Brk: Trying to allocate already allocated page, please check mappings\n");
@@ -108,8 +108,8 @@ int BrkHandler(void* addr) {
       
       if(current_process->page_table[pt_index].valid = 1) {
         region_0_pages[pt_index].valid = 0;
-        int* curr_frame_number = region_0_pages[pt_index].pfn;
-        queuePush(free_frame_queue, curr_frame_number);
+        unsigned int curr_frame_number = region_0_pages[pt_index].pfn;
+        queuePush(free_frame_queue, &curr_frame_number);
         WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
       }
       else {

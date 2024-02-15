@@ -471,8 +471,9 @@ KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p)
   for (int i = 0; i < (int)NUM_KSTACK_FRAMES; i ++) {
     region_0_pages[(NUM_PAGES - NUM_KSTACK_FRAMES) + i] = next_pcb->kernel_stack_pages[i];
   }
-  WriteRegister(REG_PTBR1, (unsigned int) next_pcb->page_table);
   WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_ALL);
+
+  // WriteRegister(REG_PTBR1, (unsigned int) next_pcb->page_table); can delete - moved to scheduler
   current_process = next_pcb;
   queuePush(process_ready_queue, curr_pcb);
 
@@ -535,9 +536,12 @@ ScheduleNextProcess(UserContext* user_context)
   // Move head of ready queue to current process and push current process to ready queue
   TracePrintf(1, "Entering scheduler \n");
   pcb_t* next_process = (pcb_t*) queuePop(process_ready_queue);
+  WriteRegister(REG_PTBR1, (unsigned int) next_process->page_table);
   if (next_process != NULL) {
     KernelContextSwitch(&KCSwitch, current_process, next_process);
   }
+  TracePrintf(1, "Copying user context\n");
+  memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
   TracePrintf(1, "Leaving scheduler \n");
 }
 

@@ -58,33 +58,32 @@ void TrapClockHandler(UserContext* user_context) {
   // Checkpoint 3
 
   // Decrement delay count for all delayed processes. If any get to 0,  move them to the ready queue
-  // if (delay_list != NULL && delay_list->front != NULL) {
-  //   lnode_t* delay_node = delay_list->front;
-  //   TracePrintf(1, "Looking at delay list proccess %d\n", delay_node->key);
-  //   while (delay_node != NULL) {
-  //     ((delay_node_data_t*) delay_node->data)->clock_ticks--;
-  //     if (((delay_node_data_t*)delay_node->data)->clock_ticks == 0) {
-  //       delay_node_data_t* data = (delay_node_data_t*)delay_node->data;
-  //       TracePrintf(1, "Moving %s from delay list to ready queue\n", delay_node->key);
-  //       TracePrintf(1, "Removing item from delay list\n");
-  //       linked_list_remove(delay_list, (int)((delay_node_data_t*)delay_node->key));
-  //       pcb_t* ready_pcb = find_blocked_process(data->pid);
-  //       if (ready_pcb == NULL) {
-  //         TracePrintf(1, "No matching pcb found for unblocked process\n");
-  //         break;
-  //       }
-  //       queuePush(process_ready_queue, ready_pcb);
-  //     }
-  //     delay_node = delay_node->next;
-  //   }
-  // }
+  if (delay_list != NULL && delay_list->front != NULL) {
+    lnode_t* delay_node = delay_list->front;
+    TracePrintf(1, "Looking at delay list proccess %d\n", delay_node->key);
+    while (delay_node != NULL) {
+      ((delay_node_data_t*) delay_node->data)->clock_ticks--;
+      if (((delay_node_data_t*)delay_node->data)->clock_ticks == 0) {
+        delay_node_data_t* data = (delay_node_data_t*)delay_node->data;
+        TracePrintf(1, "Moving %s from delay list to ready queue\n", delay_node->key);
+        TracePrintf(1, "Removing item from delay list\n");
+        linked_list_remove(delay_list, (int)((delay_node_data_t*)delay_node->key));
+        pcb_t* ready_pcb = find_blocked_process(data->pid);
+        if (ready_pcb == NULL) {
+          TracePrintf(1, "No matching pcb found for unblocked process\n");
+          break;
+        }
+        queuePush(process_ready_queue, ready_pcb);
+      }
+      delay_node = delay_node->next;
+    }
+  }
   
   // Invoke scheduler
   TracePrintf(1, "Invoking scheduler\n");
   // helper_check_heap("before");
   ScheduleNextProcess(user_context);
   // helper_check_heap("after");
-  memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
 }
 
 // Trap handler for TRAP_ILLEGAL
