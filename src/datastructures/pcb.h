@@ -23,6 +23,7 @@ typedef struct pcb {
 	UserContext* usr_ctx;
   KernelContext* krn_ctx; // stored on process switch
 	pte_t* kernel_stack_pages;
+  int current_brk;
 } pcb_t;
 
 pcb_t* pcbNew(int pid, pte_t* initial_page_table, pcb_t* parent, UserContext* initial_user_ctx, KernelContext* krn_ctx);

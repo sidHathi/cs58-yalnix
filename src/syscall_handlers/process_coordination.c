@@ -64,26 +64,61 @@ int GetPidHandler(void) {
   return current_process->pid;
 }
 
-int KernelBrk(void* addr) {
+int BrkHandler(void* addr) {
   // find the lowest point of memory in the stack
   // set this point to addr
   // note that this pointshould be rounded up to the next multiple of PAGESIZE bytes.
   // should alloc and dealloc the necessary amount of mem for the address
 
-  // if addr is invalid, return ERROR
-  // otherwise return 0 on success
-
-  // PAGESHIFT;
-  // DOWN_TO_PAGE;
-
-  // check if brk into or past user stack
+  // check if brk past user stack
   if (DOWN_TO_PAGE(current_process->usr_ctx->sp) >> PAGESHIFT <= (unsigned int)addr) {
-    TracePrintf(1, "Error: KernelBrk trying to go into user stack\n");
+    TracePrintf(1, "Error: BrkHandler trying to go above user stack\n");
     return ERROR;
   }
+  // check if addr is above or below the current brk
+  if ((unsigned int)addr >= current_process->current_brk) {
+    int first_invalid_page_index = DOWN_TO_PAGE(current_process->current_brk)/PAGESIZE;
+    int addr_page_index = DOWN_TO_PAGE(addr)/PAGESIZE;
 
-  
+    for(int pt_index = first_invalid_page_index; pt_index <= addr_page_index; pt_index++) {	
+	    
+	    if(current_process->page_table[pt_index].valid == 0) {		    
+		    int allocated_frame = queuePop(free_frame_queue);
 
+		    if(allocated_frame == ERROR) {
+          return ERROR;
+        }
+        TracePrintf(1, "BrkHandler: Allocating page %d\n", pt_index);
+        current_process->page_table[pt_index].valid = 1;
+        current_process->page_table[pt_index].prot = PROT_READ | PROT_WRITE;
+        current_process->page_table[pt_index].pfn = allocated_frame;
+	    }
+      else {
+        TracePrintf(1, "Issue Setting Brk: Trying to allocate already allocated page, please check mappings\n");
+        return ERROR;
+      }
+	  }	
+    current_process->current_brk = UP_TO_PAGE(addr);
+  }
+  else {
+    int first_valid_page_index = DOWN_TO_PAGE(current_process->current_brk)/PAGESIZE - 1;
+    int addr_page_index = DOWN_TO_PAGE(addr)/PAGESIZE;
+
+    for (int pt_index = first_valid_page_index; pt_index >= addr_page_index; pt_index--) {
+      
+      if(current_process->page_table[pt_index].valid = 1) {
+        region_0_pages[pt_index].valid = 0;
+        int* curr_frame_number = region_0_pages[pt_index].pfn;
+        queuePush(free_frame_queue, curr_frame_number);
+        WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+      }
+      else {
+        TracePrintf(1, "Issue Setting Brk: Trying to dealloc pages that weren't allocated in the first place\n");
+        return ERROR;
+      }
+    }
+	  current_process->current_brk = UP_TO_PAGE(addr);
+	}
 
   return 0;
 }
