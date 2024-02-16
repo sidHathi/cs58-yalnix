@@ -97,4 +97,4 @@ int BrkHandler(void* addr);
 * ERROR is returned instead.
 
 */
-int KernelDelay(int clock_ticks);
+int DelayHandler(int clock_ticks);

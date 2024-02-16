@@ -125,7 +125,7 @@ int BrkHandler(void* addr) {
 
 
 
-int KernelDelay(int clock_ticks) {
+int DelayHandler(int clock_ticks) {
   // sleep for the number of clock ticks provided on this current process only
   // return and allow process to continue after the delay
   // on success should return 0

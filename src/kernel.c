@@ -765,6 +765,7 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
 
   // set brk for new process:
   // proc->brk = data_pg1 + data_npg + 1;
+  proc->current_brk = (data_pg1 + data_npg + 1)*PAGESIZE;
 
   /* ==>> Throw away the old region 1 virtual address space by
    * ==>> curent process by walking through the R1 page table and,

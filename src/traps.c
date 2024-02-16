@@ -22,12 +22,17 @@ void TrapKernelHandler(UserContext* user_context) {
   {
     case YALNIX_DELAY:
       TracePrintf(1, "Yalnix delay with %d\n", user_context->regs[0]);
-      KernelDelay(user_context->regs[0]);
+      DelayHandler(user_context->regs[0]);
+      break;
+    case YALNIX_BRK:
+      TracePrintf(1, "Yalnix delay with addr %x", user_context->regs[0]);
+      BrkHandler(&user_context->regs[0]);
       break;
     default:
       TracePrintf(1, "Oops! Invalid Trap Kernel Code %x\n", user_context->code);
       Halt();
   }
+  memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
 }
 
 pcb_t*
