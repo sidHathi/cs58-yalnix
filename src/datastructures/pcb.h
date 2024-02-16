@@ -20,6 +20,7 @@ typedef struct pcb {
 	int pid;
 	int current_brk;
 	int delay_ticks;
+	int exit_status;
 	pcb_t* parent;
 	linked_list_t* children;
 	linked_list_t* zombies;
@@ -38,6 +39,13 @@ pcb_t* pcbNew(
   KernelContext* krn_ctx
 );
 
+// frees the entire pcb
 void pcbFree(pcb_t* pcb);
+
+// dumps any data that isn't needed after exits
+void pcbExit(pcb_t* pcb);
+
+// makes child and zombies' parents init
+void pcbOrphanChildren(pcb_t* pcb);
 
 #endif /*!_pcb_h*/

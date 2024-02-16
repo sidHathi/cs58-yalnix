@@ -58,6 +58,9 @@ extern linked_list_t* process_dead_arr;
 // currently running process
 extern pcb_t* current_process;
 
+// init process
+extern pcb_t* init_process;
+
 // Function passed into KernelContextSwitch to manage pcbs and kernel during process process switching
 KernelContext* KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p);
 
@@ -65,7 +68,7 @@ KernelContext* KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p
 KernelContext* KCCopy(KernelContext* kc_in, void* new_pcb_p, void* not_used);
 
 // Should be called at the end of every clock trap
-void ScheduleNextProcess();
+void ScheduleNextProcess(UserContext* usr_ctx);
 
 // load a new program into an existing address space
 int LoadProgram(char *name, char *args[], pcb_t* proc);

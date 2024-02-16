@@ -1,6 +1,7 @@
 #include "pcb.h"
 #include <ylib.h>
 #include <hardware.h>
+#include "kernel.h"
 
 pcb_t*
 pcbNew(
@@ -42,6 +43,30 @@ pcbNew(
 }
 
 void
+pcbOrphanChildren(pcb_t* pcb)
+{
+  if (pcb->children != NULL) {
+    lnode_t* curr = pcb->children->front;
+    while (curr != NULL) {
+      pcb_t* child = (pcb_t*)curr->data;
+      child->parent = init_process;
+
+      curr = curr->next;
+    }
+  }
+
+  if (pcb->zombies != NULL) {
+    lnode_t* curr = pcb->zombies->front;
+    while (curr != NULL) {
+      pcb_t* zombie = (pcb_t*)curr->data;
+      zombie->parent = init_process;
+
+      curr = curr->next;
+    }
+  }
+}
+
+void
 pcbFree(pcb_t* pcb)
 {
   // free memory allocated for the pcb
@@ -75,4 +100,36 @@ pcbFree(pcb_t* pcb)
     pcb->kernel_stack_pages = NULL;
   }
   free(pcb);
+}
+
+void
+pcbExit(pcb_t* pcb)
+{
+   if (pcb == NULL) {
+    return;
+  }
+  if (pcb->page_table != NULL) {
+    free(pcb->page_table);
+    pcb->page_table = NULL;
+  }
+  if (pcb->children != NULL) {
+    linked_list_free(pcb->children, NULL);
+    pcb->children = NULL;
+  }
+  if (pcb->zombies != NULL) {
+    linked_list_free(pcb->zombies, NULL);
+    pcb->zombies = NULL;
+  }
+  if (pcb->usr_ctx != NULL) {
+    free(pcb->usr_ctx);
+    pcb->usr_ctx = NULL;
+  }
+  if (pcb->krn_ctx != NULL) {
+    free(pcb->krn_ctx);
+    pcb->krn_ctx = NULL;
+  }
+  if (pcb->kernel_stack_pages != NULL) {
+    free(pcb->kernel_stack_pages);
+    pcb->kernel_stack_pages = NULL;
+  }
 }

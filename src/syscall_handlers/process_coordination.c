@@ -5,8 +5,7 @@
 #include "../datastructures/linked_list.h"
 #include "process_coordination.h"
 
-
-int ForkHandler(void) {
+int ForkHandler() {
 
   // create new child process and pcb for child process
 
@@ -30,12 +29,29 @@ int ExecHandler(char* filename, char** argvec) {
   return 0;
 }
 
-void ExitHandler(int status) {
+void ExitHandler(UserContext* usr_ctx, int status) {
   // clear necessary memory and free up regions of mem
   // throw error if error in cleanup
 
   // takes in the exit status, and returns out of the main function calling it
 
+  if (current_process == NULL) {
+    return;
+  }
+
+  current_process->exit_status = status;
+  current_process->state = DEAD;
+  pcbOrphanChildren(current_process);
+  pcbExit(current_process); // this is weird because the kernel definitely needs to switch contexts -> probabl
+  // add check to make sure process is not init -> make this more robust when init is a global
+  if (current_process->pid == 1) {
+    Halt();
+  }
+
+  if (current_process->parent->pid == 1) {
+    pcbFree(current_process);
+  }
+  ScheduleNextProcess(usr_ctx);
 }
 
 int WaitHandler(int *status_ptr) {
@@ -57,7 +73,7 @@ int WaitHandler(int *status_ptr) {
   return 0;
 }
 
-int GetPidHandler(void) {
+int GetPidHandler() {
   // find the pcb for this process
   // index into the pcb and find the where the PID is stored- don't know the exact location yet
   // return pid

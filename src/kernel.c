@@ -37,6 +37,7 @@ queue_t* process_ready_queue = NULL;
 linked_list_t* process_blocked_arr = NULL;
 linked_list_t* process_dead_arr = NULL;
 pcb_t* current_process = NULL;
+pcb_t* init_process = NULL;
 
 
 // local helper function prototyes
@@ -449,19 +450,17 @@ KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p)
 
   pcb_t* curr_pcb = (pcb_t*)curr_pcb_p;
   pcb_t* next_pcb = (pcb_t*)next_pcb_p;
-  if (!(check_memory_validity(curr_pcb->krn_ctx) && check_memory_validity(next_pcb->krn_ctx))) {
+  if (!check_memory_validity(next_pcb->krn_ctx)) {
     TracePrintf(1, "Memory invalid for KCSwitch kernel context pointer\n");
     return kc_in;
   }
   // copy the bytes from kc_in into the curr_pcb_p's krn_ctx
-  if (curr_pcb->krn_ctx == NULL) {
-    TracePrintf(1, "Bad kernel context pointer -> aborting KCSwitch\n");
-    return kc_in;
-  }
-  memcpy(curr_pcb->krn_ctx, kc_in, sizeof(KernelContext));
+  if (curr_pcb != NULL && curr_pcb->krn_ctx != NULL && curr_pcb->kernel_stack_pages != NULL) {
+    memcpy(curr_pcb->krn_ctx, kc_in, sizeof(KernelContext));
 
-  for (int i = 0; i < (int)NUM_KSTACK_FRAMES; i ++) {
-    curr_pcb->kernel_stack_pages[i] = region_0_pages[(NUM_PAGES - NUM_KSTACK_FRAMES) + i];
+    for (int i = 0; i < (int)NUM_KSTACK_FRAMES; i ++) {
+      curr_pcb->kernel_stack_pages[i] = region_0_pages[(NUM_PAGES - NUM_KSTACK_FRAMES) + i];
+    }
   }
 
   for (int i = 0; i < (int)NUM_KSTACK_FRAMES; i ++) {
@@ -471,7 +470,7 @@ KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p)
 
   // WriteRegister(REG_PTBR1, (unsigned int) next_pcb->page_table); can delete - moved to scheduler
   current_process = next_pcb;
-  queuePush(process_ready_queue, curr_pcb);
+  queuePush(process_ready_queue, curr_pcb); // should be moved to scheduler
 
   return next_pcb->krn_ctx;
 }

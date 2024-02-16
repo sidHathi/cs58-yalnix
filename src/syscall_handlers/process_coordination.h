@@ -49,7 +49,7 @@ int ExecHandler(char* filename, char** argvec);
 * When a process exits or is aborted, if it has children, they should continue to run normally, but they will no
 * longer have a parent.
 */
-void ExitHandler(int status);
+void ExitHandler(UserContext* usr_ctx, int status);
 
 
 /*
