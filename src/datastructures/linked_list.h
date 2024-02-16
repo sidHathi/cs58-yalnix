@@ -36,4 +36,6 @@ void linked_list_push(linked_list_t* ll, void* data);
 // Function to pop data from the head of the queue
 void* linked_list_remove(linked_list_t* ll, int key);
 
+void linked_list_free(linked_list_t* ll, freeFunc* free_func);
+
 #endif /*!_linked_list_h*/

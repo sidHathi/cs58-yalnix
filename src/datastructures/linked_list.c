@@ -4,7 +4,6 @@
 
 //type def for a function passed as a parameter to free a LL for any data type
 
-
 // A utility function to create an empty LL
 // Caller is responsible freeing LL memory later.
 linked_list_t* linked_list_create() {
@@ -57,4 +56,22 @@ void* linked_list_remove(linked_list_t* ll, int key) {
   free(curr);
 
   return data;
+}
+
+void
+linked_list_free(linked_list_t* ll, freeFunc* free_func)
+{
+	if (ll == NULL) {
+		return;
+	}
+	lnode_t* curr = ll->front;
+	while (curr != NULL) {
+		lnode_t* next = curr->next;
+		if (free_func != NULL) {
+			(*free_func)(curr->data);
+		}
+
+		free(curr);
+		curr = next;
+	}
 }

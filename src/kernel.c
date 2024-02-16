@@ -358,7 +358,7 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // set user context for idle and copy it into idle's pcb
   usr_ctx->pc = &DoIdle;
   usr_ctx->sp = (void*) (VMEM_1_LIMIT - 4);
-  pcb_t* idle_pcb = pcbNew(idle_pid, idle_pages, NULL, usr_ctx, (KernelContext*)malloc(sizeof(KernelContext)));
+  pcb_t* idle_pcb = pcbNew(idle_pid, idle_pages, NULL, NULL, usr_ctx, (KernelContext*)malloc(sizeof(KernelContext)));
   helper_check_heap("358");
   // set up idle kernel stack frames
 
@@ -397,23 +397,19 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
 
   // get pid for new proccess
   int init_pid = helper_new_pid(init_pages);
-  pcb_t* init_pcb = pcbNew(init_pid, init_pages, NULL, usr_ctx, (KernelContext*)malloc(sizeof(KernelContext)));
+  pcb_t* init_pcb = pcbNew(init_pid, init_pages, NULL, NULL, usr_ctx, (KernelContext*)malloc(sizeof(KernelContext)));
   // Load the input program into the init pcb
   if (LoadProgram(init_program_name, cmd_args, init_pcb) != 0) {
     TracePrintf(1, "LoadProgram failed for init\n");
     return;
   }
-  helper_check_heap("398");
 
   // add the idle pcb to the ready queue
   queuePush(process_ready_queue, idle_pcb);
-  helper_check_heap("409");
   num_ready_processes ++;
 
   // set the current process
   current_process = init_pcb;
-  helper_check_heap("413");
-
   // Use KCCopy to copy the current kernel context into the new pcb
   KernelContextSwitch(&KCCopy, idle_pcb, NULL);
   TracePrintf(1, "curr pcb pid %d\n", current_process->pid);

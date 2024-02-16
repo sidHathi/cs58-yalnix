@@ -70,19 +70,13 @@ queuePop(queue_t* q)
 	return data;
 }
 
-int freeQueue(queue_t* q, freeFunc freeFunction) {
+int freeQueue(queue_t* q, freeFunc* freeFunction) {
 
   if (q == NULL) {
     return 1;
   };
 
-  if(freeFunction == NULL) {
-    return 1;
-  }
-
   qnode_t* curr_node = q->front;
-	qnode_t* next_node;
-
   /*
   *
   * typedef struct qnode {
@@ -93,15 +87,13 @@ int freeQueue(queue_t* q, freeFunc freeFunction) {
   * Do we want to free the data, or have the function handle the deletion of the whole node?
   */
   while (curr_node != NULL) {
+		qnode_t* next_node = curr_node->next;
 
-    next_node == curr_node->next;
-
-    freeFunction(curr_node->data);
-
+		if(freeFunction != NULL) {
+    	(*freeFunction)(curr_node->data);
+		}
     free(curr_node);
-
     curr_node = next_node;
-
   }
 
   return 0;

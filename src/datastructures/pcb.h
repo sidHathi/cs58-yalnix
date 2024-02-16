@@ -4,7 +4,7 @@
 #include <yalnix.h>
 #include <hardware.h>
 #include <ylib.h>
-#include "memory_cache.h"
+#include "linked_list.h"
 
 #define READY 0
 #define BLOCKED 1
@@ -16,17 +16,27 @@ typedef struct pcb pcb_t;
 
 typedef struct pcb {
 	unsigned int state; // make this an enum with values for running, stopped, ready, blocked, etc
+	unsigned int waiting; // stores whether process is waiting for children to terminate
 	int pid;
+	int current_brk;
+	int delay_ticks;
 	pcb_t* parent;
-	pcb_t** children;
+	linked_list_t* children;
+	linked_list_t* zombies;
 	pte_t* page_table;
 	UserContext* usr_ctx;
-  KernelContext* krn_ctx; // stored on process switch
+	KernelContext* krn_ctx; // stored on process switch
 	pte_t* kernel_stack_pages;
-  int current_brk;
 } pcb_t;
 
-pcb_t* pcbNew(int pid, pte_t* initial_page_table, pcb_t* parent, UserContext* initial_user_ctx, KernelContext* krn_ctx);
+pcb_t* pcbNew(
+  int pid, 
+  pte_t* initial_page_table, 
+  pte_t* initial_kstack_pages,
+  pcb_t* parent, 
+  UserContext* initial_user_ctx, 
+  KernelContext* krn_ctx
+);
 
 void pcbFree(pcb_t* pcb);
 
