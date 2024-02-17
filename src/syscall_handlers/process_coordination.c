@@ -85,16 +85,30 @@ int BrkHandler(void* addr) {
   // set this point to addr
   // note that this pointshould be rounded up to the next multiple of PAGESIZE bytes.
   // should alloc and dealloc the necessary amount of mem for the address
+  helper_check_heap("Start\n");
+  TracePrintf(1, "In brk handler\n");
+  TracePrintf(1, "Addr passed: %x\n", addr);
+  TracePrintf(1, "Stack pointer: %x\n", current_process->usr_ctx->sp);
+  TracePrintf(1, "Current brk: %x\n", current_process->current_brk);
+  TracePrintf(1, "Current brk page index: %d\n", ((unsigned int) current_process->current_brk - VMEM_REGION_SIZE)/PAGESIZE);
+
+  // TracePrintf(1, "Showing mappings for region 1 page table:\n");
+  // for (int i = 0; i < NUM_PAGES; i++) {
+  //   pte_t pte = current_process->page_table[i];
+  //   TracePrintf(1, "Page %d. Valid: %d.\n", i, pte.valid);
+  // }
+  
+
 
   // check if brk past user stack
-  if (DOWN_TO_PAGE(current_process->usr_ctx->sp) >> PAGESHIFT <= (unsigned int)addr) {
+  if (DOWN_TO_PAGE(current_process->usr_ctx->sp) <= (unsigned int)addr) {
     TracePrintf(1, "Error: BrkHandler trying to go above user stack\n");
     return ERROR;
   }
   // check if addr is above or below the current brk
-  if ((unsigned int)addr >= current_process->current_brk) {
-    int first_invalid_page_index = DOWN_TO_PAGE(current_process->current_brk)/PAGESIZE;
-    int addr_page_index = DOWN_TO_PAGE(addr)/PAGESIZE;
+  if ((unsigned int)addr > (unsigned int)current_process->current_brk) {
+    int first_invalid_page_index = DOWN_TO_PAGE(current_process->current_brk)/PAGESIZE - NUM_PAGES;
+    int addr_page_index = DOWN_TO_PAGE(addr)/PAGESIZE - NUM_PAGES;
 
     for(int pt_index = first_invalid_page_index; pt_index <= addr_page_index; pt_index++) {	
 	    
@@ -110,15 +124,15 @@ int BrkHandler(void* addr) {
         current_process->page_table[pt_index].pfn = *allocated_frame;
 	    }
       else {
-        TracePrintf(1, "Issue Setting Brk: Trying to allocate already allocated page, please check mappings\n");
+        TracePrintf(1, "Issue Setting Brk: Trying to allocate already allocated page %d, please check mappings\n", pt_index);
         return ERROR;
       }
 	  }	
-    current_process->current_brk = UP_TO_PAGE(addr);
+    current_process->current_brk = (void*) UP_TO_PAGE(addr);
   }
-  else {
-    int first_valid_page_index = DOWN_TO_PAGE(current_process->current_brk)/PAGESIZE - 1;
-    int addr_page_index = DOWN_TO_PAGE(addr)/PAGESIZE;
+  else if ((unsigned int)addr < (unsigned int)current_process->current_brk) {
+    int first_valid_page_index = DOWN_TO_PAGE(current_process->current_brk)/PAGESIZE - 1 - NUM_PAGES;
+    int addr_page_index = DOWN_TO_PAGE(addr)/PAGESIZE - NUM_PAGES;
 
     for (int pt_index = first_valid_page_index; pt_index >= addr_page_index; pt_index--) {
       
@@ -133,8 +147,14 @@ int BrkHandler(void* addr) {
         return ERROR;
       }
     }
-	  current_process->current_brk = UP_TO_PAGE(addr);
+	  current_process->current_brk = (void*) UP_TO_PAGE(addr);
 	}
+
+  else {
+    TracePrintf(1, "No need to move brk\n");
+  }
+
+  helper_check_heap("End\n");
 
   return 0;
 }
@@ -156,12 +176,14 @@ int DelayHandler(int clock_ticks) {
   }
   else {
     // make the current process sleep for the number of clock ticks.
-    delay_node_data_t* data = (delay_node_data_t*) malloc(sizeof(delay_node_data_t));
-    data->clock_ticks = clock_ticks;
-    data->pid = current_process->pid;
-
-    linked_list_push(delay_list, data);
-
+    current_process->delay_ticks = clock_ticks;
+    linked_list_push(delayed_pcb_list, current_process);
+    
+    
+    // delay_node_data_t* data = (delay_node_data_t*) malloc(sizeof(delay_node_data_t));
+    // data->clock_ticks = clock_ticks;
+    // data->pid = current_process->pid;
+    // linked_list_push(delayed_pcb_list, data);
     //might need a scheduler call here for the actual delaying of the process that has now been stored in the queue;
 
     return 0;

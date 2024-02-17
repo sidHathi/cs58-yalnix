@@ -10,13 +10,7 @@
 #define MAX_PROCESSES 128
 #define NUM_PAGES VMEM_REGION_SIZE/PAGESIZE
 
-//data struct to hold the void* data for the linked list of delayed processes
-typedef struct delay_node_data {
-  int clock_ticks;
-  int pid;
-} delay_node_data_t;
-
-extern linked_list_t* delay_list;
+extern linked_list_t* delayed_pcb_list;
 
 // Array of strings for kernel to store input from the terminals
 extern char* tty_buffers[NUM_TERMINALS];
@@ -25,7 +19,7 @@ extern char* tty_buffers[NUM_TERMINALS];
 extern queue_t* free_frame_queue;
 
 // global definitions for a delayQueue, processes that are in this queue are to be blocked for the number of clock ticks
-extern linked_list_t* delay_list;
+extern linked_list_t* delayed_pcb_list;
 
 // global definitions for region 1 and 0 page tables -> stored in kernel data
 extern pte_t region_0_pages[NUM_PAGES];
@@ -47,13 +41,13 @@ extern queue_t* process_ready_queue;
 extern unsigned int num_blocked_processes;
 
 // array stores pointers to pcbs of blocked processes PCBs
-extern linked_list_t* process_blocked_arr;
+extern linked_list_t* blocked_pcb_list;
 
 // number of dead processes
 extern unsigned int num_dead_processes;
 
 // array that stores pointers to pcbs of dead processes
-extern linked_list_t* process_dead_arr;
+extern linked_list_t* dead_pcb_list;
 
 // currently running process
 extern pcb_t* current_process;

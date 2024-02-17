@@ -30,12 +30,12 @@ unsigned int num_ready_processes = 0;
 unsigned int num_dead_processes = 0;
 char* tty_buffers[NUM_TERMINALS];
 queue_t* free_frame_queue = NULL;
-linked_list_t* delay_list = NULL;
 pte_t region_0_pages[VMEM_REGION_SIZE/PAGESIZE];
 pte_t region_1_pages[VMEM_REGION_SIZE/PAGESIZE];
 queue_t* process_ready_queue = NULL;
-linked_list_t* process_blocked_arr = NULL;
-linked_list_t* process_dead_arr = NULL;
+linked_list_t* blocked_pcb_list = NULL;
+linked_list_t* dead_pcb_list = NULL;
+linked_list_t* delayed_pcb_list = NULL;
 pcb_t* current_process = NULL;
 pcb_t* init_process = NULL;
 
@@ -315,9 +315,9 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // 5. Allocate ready, blocked, and dead queues using queue_new functions
   process_ready_queue = queueCreate();
   num_ready_processes = 0;
-  process_blocked_arr = linked_list_create();
+  blocked_pcb_list = linked_list_create();
   num_blocked_processes = 0;
-  process_dead_arr = linked_list_create();
+  dead_pcb_list = linked_list_create();
   num_dead_processes = 0;
   current_process = NULL;
 
@@ -331,7 +331,7 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
 
   // CHECKPOINT 3:
   // Set up empty delay linked list
-  delay_list = linked_list_create();
+  delayed_pcb_list = linked_list_create();
   helper_check_heap("331");
 
   // Set up the idle pcb
@@ -760,7 +760,7 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
 
   // set brk for new process:
   // proc->brk = data_pg1 + data_npg + 1;
-  proc->current_brk = (data_pg1 + data_npg + 1)*PAGESIZE;
+  proc->current_brk = (void*) ((data_pg1 + data_npg + 3)*PAGESIZE + VMEM_REGION_SIZE);
 
   /* ==>> Throw away the old region 1 virtual address space by
    * ==>> curent process by walking through the R1 page table and,

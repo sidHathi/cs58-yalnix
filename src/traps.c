@@ -15,7 +15,6 @@ void TrapKernelHandler(UserContext* user_context) {
 
   // Checkpoint 2 functionality:
   TracePrintf(1, "Trap Kernel! Code: %x\n", user_context->code);
-  TracePrintf(1, "Offending addr: %x\n", user_context->addr);
 
   // Checkpoint 3:
   switch (user_context->code)
@@ -25,8 +24,10 @@ void TrapKernelHandler(UserContext* user_context) {
       DelayHandler(user_context->regs[0]);
       break;
     case YALNIX_BRK:
-      TracePrintf(1, "Yalnix delay with addr %x", user_context->regs[0]);
-      BrkHandler(&user_context->regs[0]);
+      TracePrintf(1, "Yalnix BRK with addr %p\n", (void*) user_context->regs[0]);
+      user_context->regs[0] = BrkHandler((void*) user_context->regs[0]);
+      TracePrintf(1, "regs[0] = %d\n", user_context->regs[0]);
+      Halt();
       break;
     default:
       TracePrintf(1, "Oops! Invalid Trap Kernel Code %x\n", user_context->code);
@@ -38,7 +39,7 @@ void TrapKernelHandler(UserContext* user_context) {
 pcb_t*
 find_blocked_process(int pid)
 {
-  lnode_t* curr = process_blocked_arr->front;
+  lnode_t* curr = blocked_pcb_list->front;
   pcb_t* process = NULL;
   while (curr != NULL && process == NULL) {
     if (((pcb_t*) curr->data)->pid == pid) {
@@ -63,22 +64,19 @@ void TrapClockHandler(UserContext* user_context) {
   // Checkpoint 3
 
   // Decrement delay count for all delayed processes. If any get to 0,  move them to the ready queue
-  if (delay_list != NULL && delay_list->front != NULL) {
-    lnode_t* delay_node = delay_list->front;
-    TracePrintf(1, "Looking at delay list proccess %d\n", delay_node->key);
+  if (delayed_pcb_list != NULL && delayed_pcb_list->front != NULL) {
+    lnode_t* delay_node = delayed_pcb_list->front;
     while (delay_node != NULL) {
-      ((delay_node_data_t*) delay_node->data)->clock_ticks--;
-      if (((delay_node_data_t*)delay_node->data)->clock_ticks == 0) {
-        delay_node_data_t* data = (delay_node_data_t*)delay_node->data;
+      pcb_t* delay_pcb = (pcb_t*) delay_node->data;
+      if (delay_pcb == NULL) {
+        TracePrintf(1, "Invalid PCB in delay list!\n");
+        Halt();
+      }
+      delay_pcb->delay_ticks--;
+      if (delay_pcb->delay_ticks == 0) {
         TracePrintf(1, "Moving %s from delay list to ready queue\n", delay_node->key);
-        TracePrintf(1, "Removing item from delay list\n");
-        linked_list_remove(delay_list, (int)((delay_node_data_t*)delay_node->key));
-        pcb_t* ready_pcb = find_blocked_process(data->pid);
-        if (ready_pcb == NULL) {
-          TracePrintf(1, "No matching pcb found for unblocked process\n");
-          break;
-        }
-        queuePush(process_ready_queue, ready_pcb);
+        linked_list_remove(delayed_pcb_list, (int)(delay_node->key));
+        queuePush(process_ready_queue, delay_pcb);
       }
       delay_node = delay_node->next;
     }
