@@ -15,25 +15,30 @@ void TrapKernelHandler(UserContext* user_context) {
 
   // Checkpoint 2 functionality:
   TracePrintf(1, "Trap Kernel! Code: %x\n", user_context->code);
+  int rc;
 
   // Checkpoint 3:
   switch (user_context->code)
   {
     case YALNIX_DELAY:
       TracePrintf(1, "Yalnix delay with %d\n", user_context->regs[0]);
-      DelayHandler(user_context->regs[0]);
+      rc = DelayHandler(user_context->regs[0]);
       break;
     case YALNIX_BRK:
       TracePrintf(1, "Yalnix BRK with addr %p\n", (void*) user_context->regs[0]);
-      user_context->regs[0] = BrkHandler((void*) user_context->regs[0]);
-      TracePrintf(1, "regs[0] = %d\n", user_context->regs[0]);
-      Halt();
+      rc = BrkHandler((void*) user_context->regs[0]);
       break;
     default:
       TracePrintf(1, "Oops! Invalid Trap Kernel Code %x\n", user_context->code);
       Halt();
   }
-  memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
+
+  // memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
+  user_context->regs[0] = rc;
+  // memcpy(current_process->usr_ctx, user_context, sizeof(UserContext));
+  current_process->usr_ctx->sp = user_context->sp;
+  // current_process->usr_ctx->pc = user_context->pc;
+  ScheduleNextProcess(user_context);
 }
 
 pcb_t*

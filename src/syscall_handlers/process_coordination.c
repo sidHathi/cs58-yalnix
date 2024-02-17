@@ -51,7 +51,6 @@ void ExitHandler(UserContext* usr_ctx, int status) {
   if (current_process->parent->pid == 1) {
     pcbFree(current_process);
   }
-  ScheduleNextProcess(usr_ctx);
 }
 
 int WaitHandler(int *status_ptr) {
@@ -166,7 +165,6 @@ int DelayHandler(int clock_ticks) {
   // return and allow process to continue after the delay
   // on success should return 0
   // return ERROR if clock_ticks is less than 0, or time is improperly carried out
-  TracePrintf(1, "Here %d\n", clock_ticks);
   if(clock_ticks == 0) {
     return 0;
   }
@@ -176,9 +174,9 @@ int DelayHandler(int clock_ticks) {
   }
   else {
     // make the current process sleep for the number of clock ticks.
+    TracePrintf(1, "Pushing process %d to delay list\n", current_process->pid);
     current_process->delay_ticks = clock_ticks;
     linked_list_push(delayed_pcb_list, current_process);
-    
     
     // delay_node_data_t* data = (delay_node_data_t*) malloc(sizeof(delay_node_data_t));
     // data->clock_ticks = clock_ticks;
