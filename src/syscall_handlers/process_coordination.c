@@ -54,7 +54,7 @@ void ExitHandler(UserContext* usr_ctx, int status) {
   ScheduleNextProcess(usr_ctx);
 }
 
-int WaitHandler(int *status_ptr) {
+int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
   // unlock the lock of the status so that another process can use
   // get the PID and exit status returned by a child process of the calling program
   
@@ -70,6 +70,42 @@ int WaitHandler(int *status_ptr) {
   //          return so that process can continue in the code. - child PID should be returned
   //          ** if the status_ptr is not null, just set the Child PID to that pointer
 
+  // check for zombies -> 
+  // if the head of the zombie linked list is not null
+    // iterate through the zombies, and free them entirely -> linked list should now be empty
+    // exit immediately
+  if (current_process == NULL || current_process->children == NULL || current_process->zombies == NULL) {
+    return ERROR;
+  }
+
+  if (current_process->zombies != NULL && current_process->zombies->front != NULL) {
+    lnode_t* curr = current_process->zombies->front;
+    int exit_status = ((pcb_t*)current_process->zombies->front->data)->exit_status;
+    // empty zombie list
+    while (curr != NULL) {
+      lnode_t* next = curr->next;
+      pcbFree((pcb_t*)curr->data);
+      free(curr);
+      curr = next;
+    }
+    // mark list as emptied
+    current_process->zombies->front = current_process->zombies->front = NULL;
+    if (status_ptr != NULL) {
+      memcpy(status_ptr, exit_status, sizeof(int));
+    }
+    return 0;
+  }
+
+  // check to make sure there are children ->
+    // if none return error val
+  if (current_process->children->front == NULL) {
+    return ERROR;
+  }
+  // Otherwise, update the status values in the pcb
+  current_process->waiting = 1;
+  current_process->state = BLOCKED;
+
+  ScheduleNextProcess(usr_ctx);
   return 0;
 }
 
