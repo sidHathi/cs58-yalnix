@@ -18,7 +18,7 @@ typedef struct pcb {
 	unsigned int state; // make this an enum with values for running, stopped, ready, blocked, etc
 	unsigned int waiting; // stores whether process is waiting for children to terminate
 	int pid;
-	int current_brk;
+	void* current_brk;
 	int delay_ticks;
 	int exit_status;
 	pcb_t* parent;
