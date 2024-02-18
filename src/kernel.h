@@ -67,4 +67,6 @@ void ScheduleNextProcess(UserContext* usr_ctx);
 // load a new program into an existing address space
 int LoadProgram(char *name, char *args[], pcb_t* proc);
 
+unsigned int check_memory_validity(void* pointer_addr);
+
 #endif /*!_kernel_h*/

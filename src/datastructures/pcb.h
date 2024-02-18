@@ -21,6 +21,7 @@ typedef struct pcb {
 	void* current_brk;
 	int delay_ticks;
 	int exit_status;
+	int child_exit_status;
 	pcb_t* parent;
 	linked_list_t* children;
 	linked_list_t* zombies;

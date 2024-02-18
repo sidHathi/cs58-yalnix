@@ -38,7 +38,11 @@ void TrapKernelHandler(UserContext* user_context) {
       break;
     case YALNIX_WAIT:
       TracePrintf(1, "Yalnix wait invoked with pid %d\n", user_context->regs[0]);
-      rc = WaitHandler((int*) user_context->regs[0]);
+      rc = WaitHandler(user_context, (int*) user_context->regs[0]);
+      break;
+    case YALNIX_EXIT:
+      TracePrintf(1, "Yalnix exit invoked with status %d\n", user_context->regs[0]);
+      ExitHandler(user_context->regs[0]);
       break;
     default:
       TracePrintf(1, "Oops! Invalid Trap Kernel Code %x\n", user_context->code);

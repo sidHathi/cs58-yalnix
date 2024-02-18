@@ -53,7 +53,7 @@ int ExecHandler(char* filename, char** argvec) {
   return 0;
 }
 
-void ExitHandler(UserContext* usr_ctx, int status) {
+void ExitHandler(int status) {
   // clear necessary memory and free up regions of mem
   // throw error if error in cleanup
 
@@ -89,6 +89,10 @@ void ExitHandler(UserContext* usr_ctx, int status) {
     // remove parent from blocked process list
     pcb_list_remove(blocked_pcb_list, parent_pcb->pid);
     num_blocked_processes --;
+    
+    // free current pcb
+    pcbFree(current_process);
+    current_process = NULL;
   } else {
     // add process as zombie
     linked_list_push(parent_pcb->zombies, current_process);
@@ -96,9 +100,10 @@ void ExitHandler(UserContext* usr_ctx, int status) {
     linked_list_push(dead_pcb_list, current_process);
     num_dead_processes ++;
   }
+  parent_pcb->child_exit_status = status;
 }
 
-int WaitHandler(int *status_ptr) {
+int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
   // unlock the lock of the status so that another process can use
   // get the PID and exit status returned by a child process of the calling program
   
@@ -119,6 +124,11 @@ int WaitHandler(int *status_ptr) {
     // iterate through the zombies, and free them entirely -> linked list should now be empty
     // exit immediately
   if (current_process == NULL || current_process->children == NULL || current_process->zombies == NULL) {
+    return ERROR;
+  }
+
+  if (status_ptr == NULL || !check_memory_validity(status_ptr)) {
+    TracePrintf(1, "invalid status pointer passed into wait handler\n");
     return ERROR;
   }
 
@@ -146,6 +156,7 @@ int WaitHandler(int *status_ptr) {
     if (status_ptr != NULL) {
       memcpy(status_ptr, &exit_status, sizeof(int));
     }
+
     return 0;
   }
 
@@ -157,6 +168,13 @@ int WaitHandler(int *status_ptr) {
   // Otherwise, update the status values in the pcb
   current_process->waiting = 1;
   current_process->state = BLOCKED;
+  // don't return until the current process is unblocked
+  while (current_process->waiting && current_process->state == BLOCKED) {
+    ScheduleNextProcess(usr_ctx);
+    // the scheduler should return here when we switch back to the waiting process
+  }
+  // set status pointer
+  memcpy(status_ptr, &current_process->child_exit_status, sizeof(int));
   return 0;
 }
 

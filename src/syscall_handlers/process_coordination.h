@@ -49,7 +49,7 @@ int ExecHandler(char* filename, char** argvec);
 * When a process exits or is aborted, if it has children, they should continue to run normally, but they will no
 * longer have a parent.
 */
-void ExitHandler(UserContext* usr_ctx, int status);
+void ExitHandler(int status);
 
 
 /*
@@ -65,7 +65,7 @@ void ExitHandler(UserContext* usr_ctx, int status);
 * On success, the process ID of the child process is returned. If status ptr is not null, the exit status of the
 * child is copied to that address.
 */
-int WaitHandler(int *status_ptr);
+int WaitHandler(UserContext* usr_ctx, int *status_ptr);
 
 
 /*
