@@ -424,13 +424,22 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
 unsigned int
 check_memory_validity(void* pointer_addr)
 {
+  int region = 0;
   int byte_no = (int)pointer_addr;
   int page_addr = DOWN_TO_PAGE(byte_no);
   int page_no = page_addr/PAGESIZE;
-  if (page_no > NUM_PAGES) {
+  if (page_no > NUM_PAGES*2) {
     return -1;
+  } else if (page_no > NUM_PAGES) {
+    region = 1;
+    page_no -= NUM_PAGES;
   }
+
   pte_t page = region_0_pages[page_no];
+  if (region == 1) {
+    pte_t* r1_pt = (pte_t*)ReadRegister(REG_PTBR1);
+    page = r1_pt[page_no];
+  }
   // maybe also check read/write permissions but not sure how to do yet
   if (page.valid) {
     return 1;

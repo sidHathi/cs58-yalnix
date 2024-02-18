@@ -119,17 +119,18 @@ int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
   //          return so that process can continue in the code. - child PID should be returned
   //          ** if the status_ptr is not null, just set the Child PID to that pointer
 
-  // check for zombies -> 
-  // if the head of the zombie linked list is not null
-    // iterate through the zombies, and free them entirely -> linked list should now be empty
-    // exit immediately
+
   if (current_process == NULL || current_process->children == NULL || current_process->zombies == NULL) {
+    TracePrintf(1, "current process is not valid in wait handler\n");
     return ERROR;
   }
 
+  // check to make sure the status pointer is not null and valid -> 
+  // if it isn't, we just won't use it
+  int shouldStoreStatus = 1;
   if (status_ptr == NULL || !check_memory_validity(status_ptr)) {
     TracePrintf(1, "invalid status pointer passed into wait handler\n");
-    return ERROR;
+    shouldStoreStatus = 0;
   }
 
   // if wait is called while the process has already exited zombie children,
@@ -153,7 +154,7 @@ int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
     }
     // mark list as emptied
     current_process->zombies->front = current_process->zombies->front = NULL;
-    if (status_ptr != NULL) {
+    if (shouldStoreStatus) {
       memcpy(status_ptr, &exit_status, sizeof(int));
     }
 
@@ -174,7 +175,9 @@ int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
     // the scheduler should return here when we switch back to the waiting process
   }
   // set status pointer
-  memcpy(status_ptr, &current_process->child_exit_status, sizeof(int));
+  if (shouldStoreStatus) {
+    memcpy(status_ptr, &current_process->child_exit_status, sizeof(int));
+  }
   return 0;
 }
 
