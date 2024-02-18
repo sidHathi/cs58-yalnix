@@ -470,7 +470,6 @@ KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p)
 
   // WriteRegister(REG_PTBR1, (unsigned int) next_pcb->page_table); can delete - moved to scheduler
   current_process = next_pcb;
-  queuePush(process_ready_queue, curr_pcb); // should be moved to scheduler
 
   return next_pcb->krn_ctx;
 }
@@ -520,6 +519,31 @@ KCCopy(KernelContext* kc_in, void* new_pcb_p, void* not_used)
 }
 
 void
+enqueue_current_process()
+{
+  if (current_process == NULL) {
+    return;
+  }
+
+  switch (current_process->state) {
+    case READY:
+      queuePush(process_ready_queue, current_process);
+      num_ready_processes++;
+      break;
+    case DEAD:
+      linked_list_push(dead_pcb_list, current_process);
+      num_dead_processes++;
+      break;
+    case BLOCKED:
+      linked_list_push(blocked_pcb_list, current_process);
+      num_blocked_processes++;
+      break;
+    default:
+      TracePrintf(1, "ERROR: Invalid process state for pid: %d\n", current_process->pid);
+  }
+}
+
+void
 ScheduleNextProcess(UserContext* user_context)
 {
   // if there are no processes on the ready queue -> return
@@ -531,8 +555,11 @@ ScheduleNextProcess(UserContext* user_context)
   // Move head of ready queue to current process and push current process to ready queue
   TracePrintf(1, "Entering scheduler \n");
   pcb_t* next_process = (pcb_t*) queuePop(process_ready_queue);
+  num_ready_processes--;
   WriteRegister(REG_PTBR1, (unsigned int) next_process->page_table);
   if (next_process != NULL) {
+    // need a function to assign the current process to the correct queue
+    enqueue_current_process();
     KernelContextSwitch(&KCSwitch, current_process, next_process);
   }
   TracePrintf(1, "Copying user context\n");

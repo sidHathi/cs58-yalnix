@@ -17,27 +17,36 @@ void TrapKernelHandler(UserContext* user_context) {
   TracePrintf(1, "Trap Kernel! Code: %x\n", user_context->code);
   int rc;
 
-  // Checkpoint 3:
-  switch (user_context->code)
-  {
+  current_process->usr_ctx->sp = user_context->sp;
+  // current_process->usr_ctx->pc = user_context->pc;
+
+  switch (user_context->code) {
     case YALNIX_DELAY:
       TracePrintf(1, "Yalnix delay with %d\n", user_context->regs[0]);
-      rc = DelayHandler(user_context->regs[0]);
       break;
     case YALNIX_BRK:
       TracePrintf(1, "Yalnix BRK with addr %p\n", (void*) user_context->regs[0]);
       rc = BrkHandler((void*) user_context->regs[0]);
+      break;
+    case YALNIX_FORK:
+      TracePrintf(1, "Yalnix fork invoked\n");
+      rc = ForkHandler();
+      break;
+    case YALNIX_EXEC:
+      TracePrintf(1, "Yalnix exec invoked with filename: %s, argvec: %p\n", (char*) user_context->regs[0], (char**) user_context->regs[1]);
+      rc = ExecHandler((char*) user_context->regs[0], (char**) user_context->regs[1]);
+      break;
+    case YALNIX_WAIT:
+      TracePrintf(1, "Yalnix wait invoked with pid %d\n", user_context->regs[0]);
+      rc = WaitHandler((int*) user_context->regs[0]);
       break;
     default:
       TracePrintf(1, "Oops! Invalid Trap Kernel Code %x\n", user_context->code);
       Halt();
   }
 
+  current_process->usr_ctx->regs[0] = rc;
   // memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
-  user_context->regs[0] = rc;
-  // memcpy(current_process->usr_ctx, user_context, sizeof(UserContext));
-  current_process->usr_ctx->sp = user_context->sp;
-  // current_process->usr_ctx->pc = user_context->pc;
   ScheduleNextProcess(user_context);
 }
 

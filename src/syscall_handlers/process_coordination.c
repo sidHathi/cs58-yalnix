@@ -5,6 +5,30 @@
 #include "../datastructures/linked_list.h"
 #include "process_coordination.h"
 
+// helper function for pcb list management:
+// removes the pcb with pid `pid` from the `list`
+// of pcb_t pointers
+void
+pcb_list_remove(linked_list_t* list, int pid) {
+  if (list == NULL) {
+    return;
+  }
+  lnode_t* curr = list->front;
+  while (curr != NULL) {
+    lnode_t* next = curr->next;
+    if (((pcb_t*) (curr->data))->pid == pid) {
+      if (curr->prev != NULL) {
+        curr->prev->next = curr->next;
+      } else {
+        list->front = curr->next;
+      }
+      free(curr);
+      curr = next;
+      break;
+    }
+  }
+}
+
 int ForkHandler() {
 
   // create new child process and pcb for child process
@@ -42,18 +66,39 @@ void ExitHandler(UserContext* usr_ctx, int status) {
   current_process->exit_status = status;
   current_process->state = DEAD;
   pcbOrphanChildren(current_process);
-  pcbExit(current_process); // this is weird because the kernel definitely needs to switch contexts -> probabl
+  pcbExit(current_process); // Current pcb can now hold only cursory data about the process and is functionally dead
   // add check to make sure process is not init -> make this more robust when init is a global
-  if (current_process->pid == 1) {
-    Halt();
+  if (current_process->pid == init_process->pid) {
+    Halt(); // program halts when init exits
   }
 
-  if (current_process->parent->pid == 1) {
-    pcbFree(current_process);
+  // this process now needs to become a zombie of its parent rather than a child -> involves removing itself from children list and appending to zombies
+  pcb_t* parent_pcb = current_process->parent;
+  if (parent_pcb == NULL) {
+    return;
+  }
+  // remove from children list
+  pcb_list_remove(parent_pcb->children, current_process->pid);
+
+  // if the parent of this process is waiting -> unblock it and add it to ready queue -> if not, add to zombies list
+  if (parent_pcb->waiting) {
+    parent_pcb->state = READY;
+    queuePush(process_ready_queue, parent_pcb);
+    num_ready_processes ++;
+
+    // remove parent from blocked process list
+    pcb_list_remove(blocked_pcb_list, parent_pcb->pid);
+    num_blocked_processes --;
+  } else {
+    // add process as zombie
+    linked_list_push(parent_pcb->zombies, current_process);
+    // add to dead process list
+    linked_list_push(dead_pcb_list, current_process);
+    num_dead_processes ++;
   }
 }
 
-int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
+int WaitHandler(int *status_ptr) {
   // unlock the lock of the status so that another process can use
   // get the PID and exit status returned by a child process of the calling program
   
@@ -77,20 +122,29 @@ int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
     return ERROR;
   }
 
+  // if wait is called while the process has already exited zombie children,
+  // it should remove the zombies, free their pcbs, and exit immediately
   if (current_process->zombies != NULL && current_process->zombies->front != NULL) {
-    lnode_t* curr = current_process->zombies->front;
+    lnode_t* curr_zombie_node = current_process->zombies->front;
     int exit_status = ((pcb_t*)current_process->zombies->front->data)->exit_status;
+
     // empty zombie list
-    while (curr != NULL) {
-      lnode_t* next = curr->next;
-      pcbFree((pcb_t*)curr->data);
-      free(curr);
-      curr = next;
+    while (curr_zombie_node != NULL) {
+      // remove zombie from the dead process list
+      int zombie_pid = ((pcb_t*) curr_zombie_node->data)->pid;
+      pcb_list_remove(dead_pcb_list, zombie_pid);
+      num_dead_processes --;
+
+      // free associated data and move to next node
+      lnode_t* next_zombie_node = curr_zombie_node->next;
+      pcbFree((pcb_t*)curr_zombie_node->data);
+      free(curr_zombie_node);
+      curr_zombie_node = next_zombie_node;
     }
     // mark list as emptied
     current_process->zombies->front = current_process->zombies->front = NULL;
     if (status_ptr != NULL) {
-      memcpy(status_ptr, exit_status, sizeof(int));
+      memcpy(status_ptr, &exit_status, sizeof(int));
     }
     return 0;
   }
@@ -103,8 +157,6 @@ int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
   // Otherwise, update the status values in the pcb
   current_process->waiting = 1;
   current_process->state = BLOCKED;
-
-  ScheduleNextProcess(usr_ctx);
   return 0;
 }
 
@@ -126,14 +178,6 @@ int BrkHandler(void* addr) {
   TracePrintf(1, "Stack pointer: %x\n", current_process->usr_ctx->sp);
   TracePrintf(1, "Current brk: %x\n", current_process->current_brk);
   TracePrintf(1, "Current brk page index: %d\n", ((unsigned int) current_process->current_brk - VMEM_REGION_SIZE)/PAGESIZE);
-
-  // TracePrintf(1, "Showing mappings for region 1 page table:\n");
-  // for (int i = 0; i < NUM_PAGES; i++) {
-  //   pte_t pte = current_process->page_table[i];
-  //   TracePrintf(1, "Page %d. Valid: %d.\n", i, pte.valid);
-  // }
-  
-
 
   // check if brk past user stack
   if (DOWN_TO_PAGE(current_process->usr_ctx->sp) <= (unsigned int)addr) {
