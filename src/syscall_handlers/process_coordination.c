@@ -84,7 +84,7 @@ int ForkHandler() {
       }
       new_page_table[curr_page_index].valid = 1;
       new_page_table[curr_page_index].prot = PROT_READ | PROT_WRITE;
-      new_page_table[curr_page_index].pfn = allocated_frame_region1;
+      new_page_table[curr_page_index].pfn = *allocated_frame_region1;
 
     }
   } 
