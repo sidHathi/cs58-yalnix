@@ -18,6 +18,11 @@ pcbNew(
   // use the parameters to the function to set the other fields
   // return the newly allocated pcb
   pcb_t * new_pcb = (pcb_t*) malloc(sizeof(pcb_t));
+  
+  if(new_pcb == NULL) {
+    TracePrintf(1, "newPCB: failed to malloc new pcb\n");
+    return NULL;
+  }
   new_pcb->state = READY;
   new_pcb->pid = pid;
   new_pcb->delay_ticks = 0;
