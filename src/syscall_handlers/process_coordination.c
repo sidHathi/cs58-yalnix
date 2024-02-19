@@ -46,10 +46,20 @@ int ForkHandler() {
 }
 
 int ExecHandler(char* filename, char** argvec) {
+
+  TracePrintf(1, "ExecHandler: executing with parameters: %s, %d\n", filename, argvec[0]);
+  TracePrintf(1, "ExecHandler: Calling Load Program\n");
+  int rc = LoadProgram(filename, argvec, current_process);
+  TracePrintf(1, "ExecHandler: Finished Load Program\n");
   
-  // clear current process memory
-  // execute filename argvec[1]...argvec[n]
-  // if exec new program fails, return Error if parent process has not been destroyed
+  if (rc == KILL) {
+    ExitHandler(KILL);
+  }
+  else if (rc == ERROR) {
+    TracePrintf(1, "ExecHandler: Exiting with ERROR\n");
+    return ERROR;
+  }
+
   return 0;
 }
 
