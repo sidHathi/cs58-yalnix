@@ -38,6 +38,7 @@ linked_list_t* dead_pcb_list = NULL;
 linked_list_t* delayed_pcb_list = NULL;
 pcb_t* current_process = NULL;
 pcb_t* init_process = NULL;
+pcb_t* idle_process = NULL;
 
 
 // local helper function prototyes
@@ -359,7 +360,7 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // set user context for idle and copy it into idle's pcb
   usr_ctx->pc = &DoIdle;
   usr_ctx->sp = (void*) (VMEM_1_LIMIT - 4);
-  pcb_t* idle_pcb = pcbNew(idle_pid, idle_pages, NULL, NULL, usr_ctx, (KernelContext*)malloc(sizeof(KernelContext)));
+  idle_process = pcbNew(idle_pid, idle_pages, NULL, NULL, usr_ctx, (KernelContext*)malloc(sizeof(KernelContext)));
   helper_check_heap("358");
   // set up idle kernel stack frames
 
@@ -368,12 +369,12 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   if (kernel_stack_1_p == NULL || kernel_stack_2_p == NULL) {
     TracePrintf(1, "No available frames for kernel stack\n");
   }
-  idle_pcb->kernel_stack_pages[0].valid = 1;
-  idle_pcb->kernel_stack_pages[0].prot = PROT_READ | PROT_WRITE;
-  idle_pcb->kernel_stack_pages[0].pfn = *kernel_stack_1_p;
-  idle_pcb->kernel_stack_pages[1].valid = 1;
-  idle_pcb->kernel_stack_pages[1].prot = PROT_READ | PROT_WRITE;
-  idle_pcb->kernel_stack_pages[1].pfn = *kernel_stack_2_p;
+  idle_process->kernel_stack_pages[0].valid = 1;
+  idle_process->kernel_stack_pages[0].prot = PROT_READ | PROT_WRITE;
+  idle_process->kernel_stack_pages[0].pfn = *kernel_stack_1_p;
+  idle_process->kernel_stack_pages[1].valid = 1;
+  idle_process->kernel_stack_pages[1].prot = PROT_READ | PROT_WRITE;
+  idle_process->kernel_stack_pages[1].pfn = *kernel_stack_2_p;
   TracePrintf(1, "Created idle pcb\n");
   free(kernel_stack_1_p);
   free(kernel_stack_2_p);
@@ -398,22 +399,21 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
 
   // get pid for new proccess
   int init_pid = helper_new_pid(init_pages);
-  pcb_t* init_pcb = pcbNew(init_pid, init_pages, NULL, NULL, usr_ctx, (KernelContext*)malloc(sizeof(KernelContext)));
+  init_process = pcbNew(init_pid, init_pages, NULL, NULL, usr_ctx, (KernelContext*)malloc(sizeof(KernelContext)));
   // Load the input program into the init pcb
-  if (LoadProgram(init_program_name, cmd_args, init_pcb) != 0) {
+  if (LoadProgram(init_program_name, cmd_args, init_process) != 0) {
     TracePrintf(1, "LoadProgram failed for init\n");
     return;
   }
 
   // add the idle pcb to the ready queue
-  queuePush(process_ready_queue, idle_pcb);
-  num_ready_processes ++;
+  // queuePush(process_ready_queue, idle_process);
+  // num_ready_processes ++;
 
   // set the current process
-  current_process = init_pcb;
+  current_process = init_process;
   // Use KCCopy to copy the current kernel context into the new pcb
-  KernelContextSwitch(&KCCopy, idle_pcb, NULL);
-  TracePrintf(1, "curr pcb pid %d\n", current_process->pid);
+  KernelContextSwitch(&KCCopy, idle_process, NULL);
   TracePrintf(1, "KCCopy exited successfully\n");
 
   // Set the user stack and program counters to the ones stored 
@@ -563,14 +563,28 @@ ScheduleNextProcess(UserContext* user_context)
   // Checkpoint 3:
   // Move head of ready queue to current process and push current process to ready queue
   TracePrintf(1, "Entering scheduler \n");
+
+  // Pop next process off ready queue
   pcb_t* next_process = (pcb_t*) queuePop(process_ready_queue);
-  num_ready_processes--;
-  WriteRegister(REG_PTBR1, (unsigned int) next_process->page_table);
-  if (next_process != NULL) {
-    // need a function to assign the current process to the correct queue
+
+  // Handle empty ready queue
+  if (next_process == NULL) {
+    if (current_process == NULL) {
+      current_process = idle_process;
+    }
+    else if (current_process->pid == init_process->pid) {
+      current_process = idle_process;
+    }
+  }
+
+  // Round robin schedule
+  else {
+    num_ready_processes--;
+    WriteRegister(REG_PTBR1, (unsigned int) next_process->page_table);
     enqueue_current_process();
     KernelContextSwitch(&KCSwitch, current_process, next_process);
   }
+  
   TracePrintf(1, "Copying user context\n");
   memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
   TracePrintf(1, "Leaving scheduler \n");
