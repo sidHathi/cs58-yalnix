@@ -42,14 +42,105 @@ int ForkHandler() {
 
   // If no successful creation, return ERROR
 
-  return 0;
+
+
+//  - According to doc → very similar process to cloning init into idle for checkpoint 3
+// - Allocate stack frames
+// - allocate region 1 page table
+
+// - allocate frames for new region 1 pages → any valid entry index in the current page table gets a frame in the new page table
+// - create new process pid
+// - create a new pcb given the new pid, page table, stack frames + user context for current process
+//     - add the pcb to the children linked list of the current pcb
+// - Use `KCCopy` to copy the kernel context into the new pcb and populate the kernel stack frames with data
+// - manipulate the userland stacks of both the parent process and the newly created process so that the return value from the fork syscall in the parent is the newpid for the process and the return value for the forked process is 0 → idk how to do this honestly
+// - put the process on the ready queue
+// - exit
+
+  TracePrintf(1, "Fork Handler: Entering the System Fork Handler\n");
+
+  
+  pte_t* curr_pte;
+  unsigned int curr_page_index;
+
+  // allocate region 1 page table:
+  pte_t* new_page_table = (pte_t*) malloc(sizeof(pte_t) * NUM_PAGES);
+  for (int i = 0; i < NUM_PAGES; i ++) {
+    new_page_table[i].valid = 0; // all invalid to start
+  }
+  // - allocate frames for new region 1 pages → any valid entry index in the current page table gets a frame in the new page table
+
+  for (int i = 0; i < MAX_PT_LEN; i++) {
+    curr_pte = &(current_process->page_table[i]); // current page table entry
+    curr_page_index = (i + MAX_PT_LEN); //current region 1 page number
+
+
+    if(curr_pte->valid == 1) {
+
+      int* allocated_frame_region1 = (int*) queuePop(free_frame_queue);
+
+      if(allocated_frame_region1 == NULL) {
+        return ERROR;
+      }
+      new_page_table[curr_page_index].valid = 1;
+      new_page_table[curr_page_index].prot = PROT_READ | PROT_WRITE;
+      new_page_table[curr_page_index].pfn = allocated_frame_region1;
+
+    }
+  } 
+  // create new process pid
+  // - create a new pcb given the new pid, page table, stack frames + user context for current process
+  //     - add the pcb to the children linked list of the current pcb
+
+  int new_pid = helper_new_pid(new_page_table);
+
+  pcb_t* new_pcb = pcbNew(new_pid, new_page_table, NULL, current_process, current_process->usr_ctx, NULL);
+
+  if(new_pcb == NULL) {
+    TracePrintf(1, "Fork: newPCB is NULL!\n");
+    return ERROR;
+  }
+
+  linked_list_push(current_process->children, new_pcb);
+
+  // Use `KCCopy` to copy the kernel context into the new pcb and populate the kernel stack frames with data
+  KernelContextSwitch(&KCCopy, new_pcb, NULL);
+
+  if (current_process->pid == new_pid) {
+    TracePrintf(1, "Fork: Child returning\n");
+    queuePush(process_ready_queue, new_pcb);
+    return 0;
+  }
+  else {
+    TracePrintf(1, "Fork: Parent returning: %d\n", new_pid);
+    return new_pid;
+  }
+  
+
+  
+// - manipulate the userland stacks of both the parent process and the newly created process so that the return value from the fork syscall in the parent is the newpid for the process and the return value for the forked process is 0 → idk how to do this honestly
+
+
+// - put the process on the ready queue
+// - exit
+
 }
 
 int ExecHandler(char* filename, char** argvec) {
+
+  TracePrintf(1, "ExecHandler: executing with parameters: %s, %d\n", filename, argvec[0]);
+  TracePrintf(1, "ExecHandler: Calling Load Program\n");
+  int rc = LoadProgram(filename, argvec, current_process);
+  TracePrintf(1, "ExecHandler: Finished Load Program\n");
   
-  // clear current process memory
-  // execute filename argvec[1]...argvec[n]
-  // if exec new program fails, return Error if parent process has not been destroyed
+  if (rc == KILL) {
+    ExitHandler(KILL);
+  }
+  else if (rc == ERROR) {
+    TracePrintf(1, "ExecHandler: Exiting with ERROR\n");
+    return ERROR;
+  }
+
   return 0;
 }
 
