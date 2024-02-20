@@ -5,6 +5,7 @@
 #include <hardware.h>
 #include <ylib.h>
 #include "linked_list.h"
+#include "queue.h"
 
 #define READY 0
 #define BLOCKED 1
@@ -41,10 +42,10 @@ pcb_t* pcbNew(
 );
 
 // frees the entire pcb
-void pcbFree(pcb_t* pcb);
+void pcbFree(pcb_t* pcb, queue_t* free_frame_queue);
 
 // dumps any data that isn't needed after exits
-void pcbExit(pcb_t* pcb);
+void pcbExit(pcb_t* pcb, queue_t* free_frame_queue);
 
 // makes child and zombies' parents init
 void pcbOrphanChildren(pcb_t* pcb);

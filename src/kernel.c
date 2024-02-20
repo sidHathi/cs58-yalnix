@@ -576,23 +576,23 @@ ScheduleNextProcess(UserContext* user_context)
 
   // Handle empty ready queue
   if (next_process == NULL) {
+    TracePrintf(1, "Scheduler: CURRENT PROCESS NULL IN SCHEDULER\n");
     if (current_process == NULL) {
-      current_process = idle_process;
+      // current_process = idle_process;
+      KernelContextSwitch(&KCSwitch, current_process, idle_process);
     }
-    else if (current_process->pid == init_process->pid) {
-      current_process = idle_process;
-    }
-  }
-
-  // Round robin schedule
-  else {
+    // else if (current_process->pid == init_process->pid) {
+    //   current_process = idle_process; // i don't get this
+    // }
+  } else { // Round robin schedule
+    TracePrintf(1, "Scheduler: Switching to process w/ pid %d\n", next_process->pid);
+    enqueue_current_process();
     num_ready_processes--;
     WriteRegister(REG_PTBR1, (unsigned int) next_process->page_table);
-    enqueue_current_process();
     KernelContextSwitch(&KCSwitch, current_process, next_process);
   }
   
-  TracePrintf(1, "Copying user context\n");
+  TracePrintf(1, "Scheduler: Copying user context\n");
   memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
   TracePrintf(1, "Leaving scheduler \n");
 }

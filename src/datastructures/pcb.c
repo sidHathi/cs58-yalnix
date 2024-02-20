@@ -72,7 +72,7 @@ pcbOrphanChildren(pcb_t* pcb)
 }
 
 void
-pcbFree(pcb_t* pcb)
+pcbFree(pcb_t* pcb, queue_t* free_frame_queue)
 {
   // free memory allocated for the pcb
   // should not free parents or children -> but the linked list used to store them should be removed
@@ -81,6 +81,16 @@ pcbFree(pcb_t* pcb)
     return;
   }
   if (pcb->page_table != NULL) {
+    if (free_frame_queue != NULL) {
+      for (int i = 0; i < NUM_PAGES; i ++) {
+        pte_t page_entry = pcb->page_table[i];
+        if (page_entry.valid) {
+          int* pfn_holder = (int*) malloc(sizeof(int));
+          *pfn_holder = page_entry.pfn;
+          queuePush(free_frame_queue, pfn_holder);
+        }
+      }
+    }
     free(pcb->page_table);
     pcb->page_table = NULL;
   }
@@ -108,12 +118,22 @@ pcbFree(pcb_t* pcb)
 }
 
 void
-pcbExit(pcb_t* pcb)
+pcbExit(pcb_t* pcb, queue_t* free_frame_queue)
 {
    if (pcb == NULL) {
     return;
   }
   if (pcb->page_table != NULL) {
+    if (free_frame_queue != NULL) {
+      for (int i = 0; i < NUM_PAGES; i ++) {
+        pte_t page_entry = pcb->page_table[i];
+        if (page_entry.valid) {
+          int* pfn_holder = (int*) malloc(sizeof(int));
+          *pfn_holder = page_entry.pfn;
+          queuePush(free_frame_queue, pfn_holder);
+        }
+      }
+    }
     free(pcb->page_table);
     pcb->page_table = NULL;
   }

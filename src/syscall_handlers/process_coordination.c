@@ -77,13 +77,13 @@ int ForkHandler() {
 
     TracePrintf(1, "Fork Handler: copying page %d\n", i);
     int* allocated_frame_region1 = (int*) queuePop(free_frame_queue);
-    int frame_no = *allocated_frame_region1;
-    free(allocated_frame_region1);
-    TracePrintf(1, "Fork Handler: allocating frame no %d\n", frame_no);
-
     if (allocated_frame_region1 == NULL) {
       return ERROR;
     }
+    free(allocated_frame_region1);
+    int frame_no = *allocated_frame_region1;
+    TracePrintf(1, "Fork Handler: allocating frame no %d\n", frame_no);
+
     // set the page validity and protections in the new page table
     new_page_table[i].valid = 1;
     new_page_table[i].prot = curr_pte.prot;
@@ -91,8 +91,8 @@ int ForkHandler() {
     TracePrintf(1, "Fork Handler: set new page table validity and frame\n");
 
     // temporarily link the page 2 below the kernel stack to the newly allocated frame
-    int idx = NUM_PAGES - (2 * KERNEL_STACK_MAXSIZE/PAGESIZE);
-    void* dest_addr = (void*) (PAGESIZE * idx);
+    int idx = NUM_PAGES - 2*NUM_KSTACK_FRAMES;
+    void* dest_addr = (void*) (KERNEL_STACK_BASE - KERNEL_STACK_MAXSIZE);
     void* src_addr = (void*) (VMEM_REGION_SIZE + i*PAGESIZE);
     TracePrintf(1, "Fork Handler: dest addr: %p, src addr: %p, r0 idx: %d, ropages: %p\n", dest_addr, src_addr, idx, region_0_pages);
     region_0_pages[idx].valid = 1;
@@ -101,7 +101,7 @@ int ForkHandler() {
     TracePrintf(1, "Fork Handler: assigned page %d to new frame\n", idx);
 
     // reset the region 0 tlb
-    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_ALL);
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
 
     // copy memory into the frame (now assigned to page idx)
     memcpy(dest_addr, src_addr, PAGESIZE);
@@ -192,22 +192,29 @@ void ExitHandler(int status) {
 
   // takes in the exit status, and returns out of the main function calling it
 
+  TracePrintf(1, "Entering exit handler \n");
   if (current_process == NULL) {
+    TracePrintf(1, "Exit handler: current process is null\n");
     return;
   }
 
+  TracePrintf(1, "Exit handler: marking current process as dead\n");
   current_process->exit_status = status;
   current_process->state = DEAD;
+  TracePrintf(1, "Exit handler: orphaning process children\n");
   pcbOrphanChildren(current_process);
-  pcbExit(current_process); // Current pcb can now hold only cursory data about the process and is functionally dead
+  TracePrintf(1, "Exit handler: freeing pcb data\n");
+  pcbExit(current_process, free_frame_queue); // Current pcb can now hold only cursory data about the process and is functionally dead
   // add check to make sure process is not init -> make this more robust when init is a global
   if (current_process->pid == init_process->pid) {
+    TracePrintf(1, "Exit handler: current process is init: exiting\n");
     Halt(); // program halts when init exits
   }
 
   // this process now needs to become a zombie of its parent rather than a child -> involves removing itself from children list and appending to zombies
   pcb_t* parent_pcb = current_process->parent;
   if (parent_pcb == NULL) {
+    TracePrintf(1, "Exit handler: process has a null parent\n");
     return;
   }
   // remove from children list
@@ -215,6 +222,7 @@ void ExitHandler(int status) {
 
   // if the parent of this process is waiting -> unblock it and add it to ready queue -> if not, add to zombies list
   if (parent_pcb->waiting) {
+    TracePrintf(1, "Exit handler: parent process waiting -> unblocking\n");
     parent_pcb->state = READY;
     queuePush(process_ready_queue, parent_pcb);
     num_ready_processes ++;
@@ -224,7 +232,8 @@ void ExitHandler(int status) {
     num_blocked_processes --;
     
     // free current pcb
-    pcbFree(current_process);
+    TracePrintf(1, "Exit handler: freeing current pcb\n");
+    pcbFree(current_process, free_frame_queue);
     current_process = NULL;
   } else {
     // add process as zombie
@@ -269,6 +278,7 @@ int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
   // if wait is called while the process has already exited zombie children,
   // it should remove the zombies, free their pcbs, and exit immediately
   if (current_process->zombies != NULL && current_process->zombies->front != NULL) {
+    TracePrintf(1, "WaitHandler: child has already exited -> removing zombies and returning \n");
     lnode_t* curr_zombie_node = current_process->zombies->front;
     int exit_status = ((pcb_t*)current_process->zombies->front->data)->exit_status;
 
@@ -281,7 +291,7 @@ int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
 
       // free associated data and move to next node
       lnode_t* next_zombie_node = curr_zombie_node->next;
-      pcbFree((pcb_t*)curr_zombie_node->data);
+      pcbFree((pcb_t*)curr_zombie_node->data, free_frame_queue);
       free(curr_zombie_node);
       curr_zombie_node = next_zombie_node;
     }
@@ -297,13 +307,16 @@ int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
   // check to make sure there are children ->
     // if none return error val
   if (current_process->children->front == NULL) {
+    TracePrintf(1, "WaitHandler: current process has no children -> returning \n");
     return ERROR;
   }
   // Otherwise, update the status values in the pcb
   current_process->waiting = 1;
   current_process->state = BLOCKED;
+  TracePrintf(1, "WaitHandler: blocking current process \n");
   // don't return until the current process is unblocked
   while (current_process->waiting && current_process->state == BLOCKED) {
+    TracePrintf(1, "WaitHandler: invoking scheduler \n");
     ScheduleNextProcess(usr_ctx);
     // the scheduler should return here when we switch back to the waiting process
   }
