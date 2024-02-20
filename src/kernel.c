@@ -477,7 +477,6 @@ KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p)
   }
   WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_ALL);
 
-  // WriteRegister(REG_PTBR1, (unsigned int) next_pcb->page_table); can delete - moved to scheduler
   current_process = next_pcb;
 
   return next_pcb->krn_ctx;
@@ -580,13 +579,12 @@ ScheduleNextProcess(UserContext* user_context)
   // Handle empty ready queue
   if (next_process == NULL) {
     TracePrintf(1, "Scheduler: CURRENT PROCESS NULL IN SCHEDULER\n");
-    if (current_process == NULL) {
-      // current_process = idle_process;
-      KernelContextSwitch(&KCSwitch, current_process, idle_process);
+    if (current_process != NULL && current_process->pid == init_process->pid) {
+      enqueue_current_process();
     }
-    // else if (current_process->pid == init_process->pid) {
-    //   current_process = idle_process; // i don't get this
-    // }
+
+    WriteRegister(REG_PTBR1, (unsigned int) idle_process->page_table);
+    KernelContextSwitch(&KCSwitch, current_process, idle_process);
   } else { // Round robin schedule
     TracePrintf(1, "Scheduler: Switching to process w/ pid %d\n", next_process->pid);
     num_ready_processes--;

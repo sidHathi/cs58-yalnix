@@ -70,48 +70,48 @@ int ForkHandler() {
 
   for (int i = 0; i < NUM_PAGES; i++) {
     pte_t curr_pte = current_process->page_table[i]; // current page table entry
-    TracePrintf(1, "Fork Handler: pte contents for index %d: valid: %d, pfn: %d\n", i, curr_pte.valid, curr_pte.pfn);
+    // TracePrintf(1, "Fork Handler: pte contents for index %d: valid: %d, pfn: %d\n", i, curr_pte.valid, curr_pte.pfn);
     if (!curr_pte.valid) {
       continue;
     }
 
-    TracePrintf(1, "Fork Handler: copying page %d\n", i);
+    // TracePrintf(1, "Fork Handler: copying page %d\n", i);
     int* allocated_frame_region1 = (int*) queuePop(free_frame_queue);
     if (allocated_frame_region1 == NULL) {
       return ERROR;
     }
     free(allocated_frame_region1);
     int frame_no = *allocated_frame_region1;
-    TracePrintf(1, "Fork Handler: allocating frame no %d\n", frame_no);
+    // TracePrintf(1, "Fork Handler: allocating frame no %d\n", frame_no);
 
     // set the page validity and protections in the new page table
     new_page_table[i].valid = 1;
     new_page_table[i].prot = curr_pte.prot;
     new_page_table[i].pfn = frame_no;
-    TracePrintf(1, "Fork Handler: set new page table validity and frame\n");
+    // TracePrintf(1, "Fork Handler: set new page table validity and frame\n");
 
     // temporarily link the page 2 below the kernel stack to the newly allocated frame
     int idx = NUM_PAGES - 2*NUM_KSTACK_FRAMES;
     void* dest_addr = (void*) (KERNEL_STACK_BASE - KERNEL_STACK_MAXSIZE);
     void* src_addr = (void*) (VMEM_REGION_SIZE + i*PAGESIZE);
-    TracePrintf(1, "Fork Handler: dest addr: %p, src addr: %p, r0 idx: %d, ropages: %p\n", dest_addr, src_addr, idx, region_0_pages);
+    // TracePrintf(1, "Fork Handler: dest addr: %p, src addr: %p, r0 idx: %d, ropages: %p\n", dest_addr, src_addr, idx, region_0_pages);
     region_0_pages[idx].valid = 1;
     region_0_pages[idx].prot = PROT_READ | PROT_WRITE;
     region_0_pages[idx].pfn = frame_no;
-    TracePrintf(1, "Fork Handler: assigned page %d to new frame\n", idx);
+    // TracePrintf(1, "Fork Handler: assigned page %d to new frame\n", idx);
 
     // reset the region 0 tlb
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
 
     // copy memory into the frame (now assigned to page idx)
     memcpy(dest_addr, src_addr, PAGESIZE);
-    TracePrintf(1, "Fork Handler: copied data to new frame\n", idx);
+    // TracePrintf(1, "Fork Handler: copied data to new frame\n", idx);
 
     // reset the region 0 page table entry for idx
     region_0_pages[idx].valid = 0;
     region_0_pages[idx].prot = 0;
     region_0_pages[idx].pfn = 0;
-    TracePrintf(1, "Fork Handler: dereferenced kernel page\n", idx);
+    // TracePrintf(1, "Fork Handler: dereferenced kernel page\n", idx);
   }
 
   // create new process pid
@@ -233,8 +233,10 @@ void ExitHandler(int status) {
     
     // free current pcb
     TracePrintf(1, "Exit handler: freeing current pcb\n");
-    pcbFree(current_process, free_frame_queue);
-    current_process = NULL;
+    if (current_process != NULL) {
+      pcbFree(current_process, free_frame_queue);
+      current_process = NULL;
+    }
   } else {
     // add process as zombie
     linked_list_push(parent_pcb->zombies, current_process);
@@ -243,6 +245,7 @@ void ExitHandler(int status) {
     num_dead_processes ++;
   }
   parent_pcb->child_exit_status = status;
+  TracePrintf(1, "Leaving exit handler\n");
 }
 
 int WaitHandler(UserContext* usr_ctx, int *status_ptr) {

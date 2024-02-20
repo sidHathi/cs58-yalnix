@@ -17,8 +17,7 @@ void TrapKernelHandler(UserContext* user_context) {
   TracePrintf(1, "Trap Kernel! Code: %x\n", user_context->code);
   int rc;
 
-  current_process->usr_ctx->sp = user_context->sp;
-  // current_process->usr_ctx->pc = user_context->pc;
+  memcpy(current_process->usr_ctx, user_context, sizeof(UserContext));
 
   switch (user_context->code) {
     case YALNIX_DELAY:
@@ -49,7 +48,9 @@ void TrapKernelHandler(UserContext* user_context) {
       Halt();
   }
 
-  current_process->usr_ctx->regs[0] = rc;
+  if (current_process != NULL) {
+    current_process->usr_ctx->regs[0] = rc;
+  }
   ScheduleNextProcess(user_context);
 }
 
@@ -77,9 +78,9 @@ void TrapClockHandler(UserContext* user_context) {
 
   // Checkpoint 2 functionality:
   TracePrintf(1, "Trap Clock!\n");
+  memcpy(current_process->usr_ctx, user_context, sizeof(UserContext));
 
   // Checkpoint 3
-
   // Decrement delay count for all delayed processes. If any get to 0,  move them to the ready queue
   if (delayed_pcb_list != NULL && delayed_pcb_list->front != NULL) {
     lnode_t* delay_node = delayed_pcb_list->front;
