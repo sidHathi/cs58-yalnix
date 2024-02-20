@@ -543,14 +543,17 @@ enqueue_current_process()
 
   switch (current_process->state) {
     case READY:
+      TracePrintf(1, "adding process with pid %d to ready queue\n", current_process->pid);
       queuePush(process_ready_queue, current_process);
       num_ready_processes++;
       break;
     case DEAD:
+      TracePrintf(1, "adding process with pid %d to dead list\n", current_process->pid);
       linked_list_push(dead_pcb_list, current_process);
       num_dead_processes++;
       break;
     case BLOCKED:
+      TracePrintf(1, "adding process with pid %d to blocked list\n", current_process->pid);
       linked_list_push(blocked_pcb_list, current_process);
       num_blocked_processes++;
       break;
