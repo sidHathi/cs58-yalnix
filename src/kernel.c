@@ -491,16 +491,21 @@ KCCopy(KernelContext* kc_in, void* new_pcb_p, void* not_used)
     // these will lie from KERNEL_STACK_BASE until the last (highest) page in virtual memory -> each page will reference its frame number
   // copy them into new_pcb_p
   // return kc_in
-  TracePrintf(2, "Running KCCopy\n");
-  if (!check_memory_validity(new_pcb_p)) {
-    return NULL;
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_ALL);
+  TracePrintf(1, "Running KCCopy\n");
+  if (new_pcb_p == NULL || !check_memory_validity(new_pcb_p) || kc_in == NULL) {
+    TracePrintf(1, "invalid pointer provided for new_pcb_p\n");
+    return kc_in;
   }
   pcb_t* new_pcb = (pcb_t*)new_pcb_p;
+  TracePrintf(1, "KCCopy memory check passed\n");
 
   if (new_pcb->krn_ctx == NULL) {
     new_pcb->krn_ctx = (KernelContext*) malloc(sizeof(KernelContext));
   }
+  TracePrintf(1, "kernel context pointer val %p, kc_in: %p\n", new_pcb->krn_ctx, kc_in);
   memcpy(new_pcb->krn_ctx, kc_in, sizeof(KernelContext));
+  TracePrintf(1, "Copied kernel context into new pcb\n");
 
   // copy data into the pages
   // put the old pages back
@@ -510,10 +515,12 @@ KCCopy(KernelContext* kc_in, void* new_pcb_p, void* not_used)
   for (int i = 0; i < (int)NUM_KSTACK_FRAMES; i ++) {
     region_0_pages[(int)(NUM_PAGES - 2*NUM_KSTACK_FRAMES) + i] = new_pcb->kernel_stack_pages[i];
   }
+  TracePrintf(1, "allocated temporary pages for kernel frame copying\n");
   // clear tlb cache for region 0
   WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
   // copy data into the pages
   void* temp_stack_addr = (void*)(KERNEL_STACK_BASE - KERNEL_STACK_MAXSIZE);
+  TracePrintf(1, "copying from %p to %p\n", (void*)KERNEL_STACK_BASE, temp_stack_addr);
   memcpy(temp_stack_addr, (void*)KERNEL_STACK_BASE, KERNEL_STACK_MAXSIZE);
   helper_check_heap("copied data into new stack frames");
   for (int i = 0; i < (int)NUM_KSTACK_FRAMES; i ++) {

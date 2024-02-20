@@ -65,72 +65,105 @@ int ForkHandler() {
   for (int i = 0; i < NUM_PAGES; i ++) {
     new_page_table[i].valid = 0; // all invalid to start
   }
+  TracePrintf(1, "Fork Handler: new page table initialized\n");
   // - allocate frames for new region 1 pages → any valid entry index in the current page table gets a frame in the new page table
 
   for (int i = 0; i < NUM_PAGES; i++) {
     pte_t curr_pte = current_process->page_table[i]; // current page table entry
-    if(!curr_pte.valid) {
+    TracePrintf(1, "Fork Handler: pte contents for index %d: valid: %d, pfn: %d\n", i, curr_pte.valid, curr_pte.pfn);
+    if (!curr_pte.valid) {
       continue;
     }
 
+    TracePrintf(1, "Fork Handler: copying page %d\n", i);
     int* allocated_frame_region1 = (int*) queuePop(free_frame_queue);
     int frame_no = *allocated_frame_region1;
     free(allocated_frame_region1);
+    TracePrintf(1, "Fork Handler: allocating frame no %d\n", frame_no);
 
-    if(allocated_frame_region1 == NULL) {
+    if (allocated_frame_region1 == NULL) {
       return ERROR;
     }
     // set the page validity and protections in the new page table
     new_page_table[i].valid = 1;
     new_page_table[i].prot = curr_pte.prot;
     new_page_table[i].pfn = frame_no;
+    TracePrintf(1, "Fork Handler: set new page table validity and frame\n");
 
     // temporarily link the page 2 below the kernel stack to the newly allocated frame
-    int idx = NUM_PAGES - (2 * KERNEL_STACK_MAXSIZE);
+    int idx = NUM_PAGES - (2 * KERNEL_STACK_MAXSIZE/PAGESIZE);
     void* dest_addr = (void*) (PAGESIZE * idx);
     void* src_addr = (void*) (VMEM_REGION_SIZE + i*PAGESIZE);
+    TracePrintf(1, "Fork Handler: dest addr: %p, src addr: %p, r0 idx: %d, ropages: %p\n", dest_addr, src_addr, idx, region_0_pages);
     region_0_pages[idx].valid = 1;
     region_0_pages[idx].prot = PROT_READ | PROT_WRITE;
     region_0_pages[idx].pfn = frame_no;
+    TracePrintf(1, "Fork Handler: assigned page %d to new frame\n", idx);
 
     // reset the region 0 tlb
-    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_ALL);
 
     // copy memory into the frame (now assigned to page idx)
     memcpy(dest_addr, src_addr, PAGESIZE);
+    TracePrintf(1, "Fork Handler: copied data to new frame\n", idx);
 
     // reset the region 0 page table entry for idx
     region_0_pages[idx].valid = 0;
     region_0_pages[idx].prot = 0;
     region_0_pages[idx].pfn = 0;
+    TracePrintf(1, "Fork Handler: dereferenced kernel page\n", idx);
   }
 
   // create new process pid
   // - create a new pcb given the new pid, page table, stack frames + user context for current process
   //     - add the pcb to the children linked list of the current pcb
   int new_pid = helper_new_pid(new_page_table);
+    TracePrintf(1, "Fork Handler: new page table pid: %d\n", new_pid);
 
   pcb_t* new_pcb = pcbNew(new_pid, new_page_table, NULL, current_process, current_process->usr_ctx, NULL);
+  new_pcb->current_brk = current_process->current_brk;
 
-  if(new_pcb == NULL) {
+  int* kernel_stack_1_p = (int*)queuePop(free_frame_queue);
+  int* kernel_stack_2_p = (int*)queuePop(free_frame_queue);
+  if (kernel_stack_1_p == NULL || kernel_stack_2_p == NULL) {
+    TracePrintf(1, "No available frames for kernel stack\n");
+  }
+  new_pcb->kernel_stack_pages[0].valid = 1;
+  new_pcb->kernel_stack_pages[0].prot = PROT_READ | PROT_WRITE;
+  new_pcb->kernel_stack_pages[0].pfn = *kernel_stack_1_p;
+  new_pcb->kernel_stack_pages[1].valid = 1;
+  new_pcb->kernel_stack_pages[1].prot = PROT_READ | PROT_WRITE;
+  new_pcb->kernel_stack_pages[1].pfn = *kernel_stack_2_p;
+  free(kernel_stack_1_p);
+  free(kernel_stack_2_p);
+
+  if (new_pcb == NULL) {
     TracePrintf(1, "Fork: newPCB is NULL!\n");
     return ERROR;
   }
 
+  TracePrintf(1, "Fork Handler: adding new pcb to current process children\n");
+  if (current_process->children == NULL) {
+    current_process->children = linked_list_create();
+  }
   linked_list_push(current_process->children, new_pcb);
 
   // add the process to the ready queue
+  TracePrintf(1, "Fork Handler: adding new pcb to ready queue\n");
   queuePush(process_ready_queue, new_pcb);
   num_ready_processes ++;
   // Use `KCCopy` to copy the kernel context into the new pcb and populate the kernel stack frames with data
+  TracePrintf(1, "Fork Handler: executing kccopy\n");
   KernelContextSwitch(&KCCopy, new_pcb, NULL);
 
   // return the correct values
   if (current_process->pid == new_pid) {
     TracePrintf(1, "Fork: Child returning\n");
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_ALL);
     return 0;
   } else {
     TracePrintf(1, "Fork: Parent returning: %d\n", new_pid);
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_ALL);
     return new_pid;
   }
 }

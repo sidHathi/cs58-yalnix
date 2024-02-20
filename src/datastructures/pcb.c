@@ -34,7 +34,7 @@ pcbNew(
   new_pcb->usr_ctx = (UserContext*) malloc(sizeof(UserContext));
   memcpy(new_pcb->usr_ctx, initial_user_ctx, sizeof(UserContext));
   if (krn_ctx == NULL) {
-    new_pcb->krn_ctx = (KernelContext*) (sizeof(KernelContext));
+    new_pcb->krn_ctx = (KernelContext*) malloc(sizeof(KernelContext));
   } else {
     new_pcb->krn_ctx = krn_ctx;
   }
