@@ -452,7 +452,7 @@ KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p)
 {
   // Check that the pointers passed in for each input are valid in memory and correspond to actual pcbs and kernel context
     // if this is not the case, return null
-  if (!(check_memory_validity(curr_pcb_p) && check_memory_validity(next_pcb_p))) {
+  if ((!(curr_pcb_p == NULL || check_memory_validity(curr_pcb_p)) && (next_pcb_p == NULL || (next_pcb_p)))) {
     TracePrintf(1, "Memory invalid for KCSwitch pointer\n");
     return kc_in;
   }
@@ -586,8 +586,8 @@ ScheduleNextProcess(UserContext* user_context)
     // }
   } else { // Round robin schedule
     TracePrintf(1, "Scheduler: Switching to process w/ pid %d\n", next_process->pid);
-    enqueue_current_process();
     num_ready_processes--;
+    enqueue_current_process();
     WriteRegister(REG_PTBR1, (unsigned int) next_process->page_table);
     KernelContextSwitch(&KCSwitch, current_process, next_process);
   }
