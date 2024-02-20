@@ -586,7 +586,7 @@ ScheduleNextProcess(UserContext* user_context)
     WriteRegister(REG_PTBR1, (unsigned int) idle_process->page_table);
     KernelContextSwitch(&KCSwitch, current_process, idle_process);
   } else { // Round robin schedule
-    TracePrintf(1, "Scheduler: Switching to process w/ pid %d\n", next_process->pid);
+    TracePrintf(1, "Scheduler: Switching to process w/ pid %d from process w/ pid %d\n", next_process->pid, current_process != NULL ? current_process->pid : -1);
     num_ready_processes--;
     enqueue_current_process();
     WriteRegister(REG_PTBR1, (unsigned int) next_process->page_table);
