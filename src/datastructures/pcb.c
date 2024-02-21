@@ -29,9 +29,11 @@ pcbNew(
   new_pcb->children = linked_list_create();
   new_pcb->zombies = linked_list_create();
   new_pcb->parent = parent;
-  new_pcb->children = NULL;
   new_pcb->page_table = initial_page_table;
   new_pcb->usr_ctx = (UserContext*) malloc(sizeof(UserContext));
+  new_pcb->exit_status = 0;
+  new_pcb->child_exit_status = 0;
+  new_pcb->waiting = 0;
   memcpy(new_pcb->usr_ctx, initial_user_ctx, sizeof(UserContext));
   if (krn_ctx == NULL) {
     new_pcb->krn_ctx = (KernelContext*) malloc(sizeof(KernelContext));

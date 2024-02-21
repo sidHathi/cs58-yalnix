@@ -19,13 +19,23 @@ pcb_list_remove(linked_list_t* list, int pid) {
     if (((pcb_t*) (curr->data))->pid == pid) {
       if (curr->prev != NULL) {
         curr->prev->next = curr->next;
+        if (curr->next != NULL) {
+          curr->next->prev = curr->prev;
+        } else {
+          list->rear = curr->prev;
+        }
       } else {
         list->front = curr->next;
+        if (list->front != NULL) {
+          list->front->prev = NULL;
+        } else {
+          list->rear = NULL;
+        }
       }
       free(curr);
-      curr = next;
       break;
     }
+    curr = next;
   }
 }
 
@@ -58,8 +68,8 @@ int ForkHandler() {
 // - exit
 
   TracePrintf(1, "Fork Handler: Entering the System Fork Handler\n");
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_ALL);
 
-  
   // allocate region 1 page table:
   pte_t* new_page_table = (pte_t*) malloc(sizeof(pte_t) * NUM_PAGES);
   for (int i = 0; i < NUM_PAGES; i ++) {
@@ -169,6 +179,10 @@ int ForkHandler() {
 }
 
 int ExecHandler(char* filename, char** argvec) {
+  if (filename == NULL || current_process == NULL) {
+    TracePrintf(1, "invalid args passed to Exec\n");
+    return ERROR;
+  }
 
   TracePrintf(1, "ExecHandler: executing with parameters: %s, %d\n", filename, argvec[0]);
   TracePrintf(1, "ExecHandler: Calling Load Program\n");
@@ -201,6 +215,7 @@ void ExitHandler(int status) {
   TracePrintf(1, "Exit handler: marking current process as dead\n");
   current_process->exit_status = status;
   current_process->state = DEAD;
+  helper_retire_pid(current_process->pid);
   TracePrintf(1, "Exit handler: orphaning process children\n");
   pcbOrphanChildren(current_process);
   TracePrintf(1, "Exit handler: freeing pcb data\n");
@@ -294,6 +309,7 @@ int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
 
       // free associated data and move to next node
       lnode_t* next_zombie_node = curr_zombie_node->next;
+      helper_retire_pid(((pcb_t*)curr_zombie_node->data)->pid);
       pcbFree((pcb_t*)curr_zombie_node->data, free_frame_queue);
       free(curr_zombie_node);
       curr_zombie_node = next_zombie_node;

@@ -8,12 +8,12 @@ main(int argc, char const *argv[])
   // test 1: wait without any children
   TracePrintf(1, "Running test exit wait\n");
   int status_ptr;
-  // TracePrintf(1, "calling wait without chlidren\n");
-  // int val = Wait(&status_ptr);
-  // assert(val == ERROR);
-  // TracePrintf(1, "calling wait with a null pointer and no children\n");
-  // val = Wait(NULL);
-  // assert(val == ERROR);
+  TracePrintf(1, "calling wait without chlidren\n");
+  int val = Wait(&status_ptr);
+  assert(val == ERROR);
+  TracePrintf(1, "calling wait with a null pointer and no children\n");
+  val = Wait(NULL);
+  assert(val == ERROR);
   // test 2: fork a process that exits and wait for it
   TracePrintf(1, "forking\n");
   int pid = Fork();
