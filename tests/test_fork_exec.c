@@ -14,8 +14,20 @@ main(int argc, char** argv)
   if (pid == 0) {
     Exec("init.c", NULL);
   }
+
+  TracePrintf(1, "Yay, we made it past fork and exec. Now let's infinitely fork!\n");
   // test 3: infinitely call fork and see how the os handles the situation
+  int i = 1;
   while (1) {
-    Fork();
+    TracePrintf(1, "Fork #%d\n", i);
+    pid = Fork();
+    if (pid == 0) {
+      Exit(0);
+    }
+    else {
+      Wait(NULL);
+      Delay(5);
+    }
+    i++;
   }
 }

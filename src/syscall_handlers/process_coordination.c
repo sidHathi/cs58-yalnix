@@ -1,5 +1,6 @@
 #include <yalnix.h>
 #include <ykernel.h>
+#include <unistd.h>
 #include "../kernel.h"
 #include "../datastructures/pcb.h"
 #include "../datastructures/linked_list.h"
@@ -32,6 +33,7 @@ pcb_list_remove(linked_list_t* list, int pid) {
           list->rear = NULL;
         }
       }
+      // pcbFree((pcb_t*)curr->data, free_frame_queue);
       free(curr);
       break;
     }
@@ -88,6 +90,7 @@ int ForkHandler() {
     // TracePrintf(1, "Fork Handler: copying page %d\n", i);
     int* allocated_frame_region1 = (int*) queuePop(free_frame_queue);
     if (allocated_frame_region1 == NULL) {
+      TracePrintf(1, "Fork Handler: No more free frames availible\n");
       return ERROR;
     }
     free(allocated_frame_region1);
@@ -181,6 +184,18 @@ int ForkHandler() {
 int ExecHandler(char* filename, char** argvec) {
   if (filename == NULL || current_process == NULL) {
     TracePrintf(1, "invalid args passed to Exec\n");
+    return ERROR;
+  }
+
+  // Check existence of executable
+  if (access(filename, F_OK) == -1) {
+    TracePrintf(1, "Exec Handler could not find file %s\n", filename);
+    return ERROR;
+  }
+
+  // Ensure file is executable
+  if (access(filename, X_OK) == -1) {
+    TracePrintf(1, "%s is not an executable\n", filename);
     return ERROR;
   }
 
