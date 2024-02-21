@@ -51,7 +51,7 @@ main(int argc, char const *argv[])
   // test 6: fork multiple processes that exit and call wait sometime later
   pid1 = Fork();
   pid2 = Fork();
-  if (pid == 0) {
+  if (pid1 == 0 || pid2 == 0) {
     Delay(5);
     Exit(0);
   }
