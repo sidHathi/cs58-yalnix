@@ -118,7 +118,23 @@ pcbFree(pcb_t* pcb, queue_t* free_frame_queue)
     free(pcb->krn_ctx);
     pcb->krn_ctx = NULL;
   }
-  if (pcb->kernel_stack_pages != NULL) {
+  if (pcb->kernel_stack_pages != NULL)
+  {
+    if (free_frame_queue != NULL)
+    {
+      TracePrintf(1, "Doing a for loop\n");
+      for (int i = 0; i < 2; i++)
+      {
+        pte_t page_entry = pcb->kernel_stack_pages[i];
+        if (page_entry.valid)
+        {
+          int *pfn_holder = (int *)malloc(sizeof(int));
+          *pfn_holder = page_entry.pfn;
+          queuePush(free_frame_queue, pfn_holder);
+        }
+      }
+    }
+
     free(pcb->kernel_stack_pages);
     pcb->kernel_stack_pages = NULL;
   }
@@ -161,7 +177,24 @@ pcbExit(pcb_t* pcb, queue_t* free_frame_queue)
     free(pcb->krn_ctx);
     pcb->krn_ctx = NULL;
   }
-  if (pcb->kernel_stack_pages != NULL) {
+  if (pcb->kernel_stack_pages != NULL)
+  {
+
+    if (free_frame_queue != NULL)
+    {
+      TracePrintf(1, "Doing a for loop\n");
+      for (int i = 0; i < 2; i++)
+      {
+        pte_t page_entry = pcb->kernel_stack_pages[i];
+        if (page_entry.valid)
+        {
+          int *pfn_holder = (int *)malloc(sizeof(int));
+          *pfn_holder = page_entry.pfn;
+          queuePush(free_frame_queue, pfn_holder);
+        }
+      }
+    }
+
     free(pcb->kernel_stack_pages);
     pcb->kernel_stack_pages = NULL;
   }

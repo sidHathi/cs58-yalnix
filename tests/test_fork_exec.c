@@ -30,7 +30,6 @@ main(int argc, char** argv)
     }
     else {
       Wait(NULL);
-      // Delay(5);
     }
     i++;
   }
