@@ -93,8 +93,8 @@ int ForkHandler() {
       TracePrintf(1, "Fork Handler: No more free frames availible\n");
       return ERROR;
     }
-    free(allocated_frame_region1);
     int frame_no = *allocated_frame_region1;
+    free(allocated_frame_region1);
     // TracePrintf(1, "Fork Handler: allocating frame no %d\n", frame_no);
 
     // set the page validity and protections in the new page table
@@ -140,6 +140,7 @@ int ForkHandler() {
   int* kernel_stack_2_p = (int*)queuePop(free_frame_queue);
   if (kernel_stack_1_p == NULL || kernel_stack_2_p == NULL) {
     TracePrintf(1, "No available frames for kernel stack\n");
+    return ERROR;
   }
   new_pcb->kernel_stack_pages[0].valid = 1;
   new_pcb->kernel_stack_pages[0].prot = PROT_READ | PROT_WRITE;
@@ -222,6 +223,8 @@ void ExitHandler(int status) {
   // takes in the exit status, and returns out of the main function calling it
 
   TracePrintf(1, "Entering exit handler \n");
+  TracePrintf(1, "Pcb page table is null: %d\n", current_process->page_table == NULL);
+  TracePrintf(1, "Free frame queue is null: %d\n", free_frame_queue == NULL);
   if (current_process == NULL) {
     TracePrintf(1, "Exit handler: current process is null\n");
     return;
@@ -234,7 +237,7 @@ void ExitHandler(int status) {
   TracePrintf(1, "Exit handler: orphaning process children\n");
   pcbOrphanChildren(current_process);
   TracePrintf(1, "Exit handler: freeing pcb data\n");
-  pcbExit(current_process, free_frame_queue); // Current pcb can now hold only cursory data about the process and is functionally dead
+  // pcbExit(current_process, free_frame_queue); // Current pcb can now hold only cursory data about the process and is functionally dead
   // add check to make sure process is not init -> make this more robust when init is a global
   if (current_process->pid == init_process->pid) {
     TracePrintf(1, "Exit handler: current process is init: exiting\n");
@@ -262,8 +265,9 @@ void ExitHandler(int status) {
     num_blocked_processes --;
     
     // free current pcb
-    TracePrintf(1, "Exit handler: freeing current pcb\n");
+    // TracePrintf(1, "Exit handler: freeing current pcb\n");
     if (current_process != NULL) {
+      TracePrintf(1, "Exit handler: freeing current pcb\n");
       pcbFree(current_process, free_frame_queue);
       current_process = NULL;
     }
@@ -274,6 +278,7 @@ void ExitHandler(int status) {
     linked_list_push(dead_pcb_list, current_process);
     num_dead_processes ++;
   }
+  pcbExit(current_process, free_frame_queue);
   parent_pcb->child_exit_status = status;
   TracePrintf(1, "Leaving exit handler\n");
 }
@@ -402,6 +407,7 @@ int BrkHandler(void* addr) {
         current_process->page_table[pt_index].valid = 1;
         current_process->page_table[pt_index].prot = PROT_READ | PROT_WRITE;
         current_process->page_table[pt_index].pfn = *allocated_frame;
+        free(allocated_frame);
 	    }
       else {
         TracePrintf(1, "Issue Setting Brk: Trying to allocate already allocated page %d, please check mappings\n", pt_index);

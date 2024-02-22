@@ -18,15 +18,19 @@ main(int argc, char** argv)
   TracePrintf(1, "Yay, we made it past fork and exec. Now let's infinitely fork!\n");
   // test 3: infinitely call fork and see how the os handles the situation
   int i = 1;
-  while (i < 5) {
+  while (1) {
     TracePrintf(1, "Fork #%d\n", i);
     pid = Fork();
-    if (pid == 0) {
+    if (pid == ERROR) {
+      TracePrintf(1, "No more free frames\n");
+      break;
+    }
+    else if (pid == 0) {
       return 0;
     }
     else {
       Wait(NULL);
-      Delay(5);
+      // Delay(5);
     }
     i++;
   }

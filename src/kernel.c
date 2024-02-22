@@ -15,6 +15,21 @@
 #include "datastructures/memory_cache.h"
 #include "programs/idle.h"
 
+void *my_malloc(size_t size, const char *file, int line, const char*func) {
+  TracePrintf(1, "Calling malloc. File: %s. Line: %d, Func: %s\n", file, line, func);
+  #undef malloc
+  void* data = malloc(size);
+  #define malloc(X) my_malloc( X, __FILE__, __LINE__, __FUNCTION__ )
+  TracePrintf(1, "");
+  return data;
+}
+void my_free(void *ptr) {
+  #undef free
+  TracePrintf(1, "Calling freeing\n");
+  free(ptr);
+  #define free(X) my_free( X )
+}
+
 // Macros that enumerate page table regions
 #define REGION_UNUSED 0
 #define REGION_BASE_MEMORY 1
@@ -91,9 +106,12 @@ expand_heap_pages(int prev_top_page_idx, int new_top_page_idx)
   // mark as valid
   TracePrintf(1, "Moving kernelbrk from page %d to page %d\n", prev_top_page_idx, new_top_page_idx);
   for (int i = prev_top_page_idx; i < new_top_page_idx; i ++) {
+    int* frame_no_ptr;
     int frame_no;
     if (virtual_mem_enabled) {
-      frame_no = *(int*)queuePop(free_frame_queue);
+      frame_no_ptr = (int*)queuePop(free_frame_queue);
+      frame_no = *frame_no_ptr;
+      free(frame_no_ptr);
     } else {
       frame_no = i; // figure out what to put here
     }

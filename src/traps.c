@@ -93,7 +93,8 @@ void TrapClockHandler(UserContext* user_context) {
       delay_pcb->delay_ticks--;
       if (delay_pcb->delay_ticks == 0) {
         TracePrintf(1, "Moving %s from delay list to ready queue\n", delay_node->key);
-        linked_list_remove(delayed_pcb_list, (int)(delay_node->key));
+        pcb_t* removed_pcb = (pcb_t*) linked_list_remove(delayed_pcb_list, (int)(delay_node->key));
+        free(removed_pcb);
         queuePush(process_ready_queue, delay_pcb);
       }
       delay_node = delay_node->next;

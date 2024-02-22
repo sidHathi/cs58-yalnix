@@ -79,16 +79,22 @@ pcbFree(pcb_t* pcb, queue_t* free_frame_queue)
   // free memory allocated for the pcb
   // should not free parents or children -> but the linked list used to store them should be removed
   // page table should be freed
+  TracePrintf(1, "In pcb free\n");
   if (pcb == NULL) {
+    TracePrintf(1, "pcb is null :(\n");
     return;
   }
+  TracePrintf(1, "Pcb page table is null: %d\n", pcb->page_table == NULL);
+  TracePrintf(1, "Free frame queue is null: %d\n", free_frame_queue == NULL);
   if (pcb->page_table != NULL) {
     if (free_frame_queue != NULL) {
+      TracePrintf(1, "Doing a for loop\n");
       for (int i = 0; i < NUM_PAGES; i ++) {
         pte_t page_entry = pcb->page_table[i];
-        if (page_entry.valid) {
+        if (page_entry.valid == 1) {
           int* pfn_holder = (int*) malloc(sizeof(int));
           *pfn_holder = page_entry.pfn;
+          TracePrintf(1, "Pcb free releasing free frame\n");
           queuePush(free_frame_queue, pfn_holder);
         }
       }
