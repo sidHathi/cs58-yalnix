@@ -62,3 +62,4 @@ MASTER_OUTLINE.md
 *yalnix
 *yalnix_framework*
 init
+tests/test_fork_exec
