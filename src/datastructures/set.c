@@ -13,12 +13,6 @@
 #include <ylib.h>
 #include "set.h"
 
-// Node in the set
-typedef struct set_node {
-    int key;
-    void* item;
-    struct set_node *next;
-} set_node_t;
 
 /**************** local functions ****************/
 

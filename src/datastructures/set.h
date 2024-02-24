@@ -6,7 +6,7 @@
  * Removed set_print
  * Removed dependency on <string.h> and <stdbool.> - false is now ERROR and true is 0
  * Added set_pop function, allowing caller to remove and return a value by key
- * Struct fields are exposed to caller
+ * Struct fields are exposed to caller for set and set node
  * Node key is now an integer
  * In set_free, is the delete function is NULL, proceed to free the nodes but not the data inside. Don't return error
  * 
@@ -19,7 +19,11 @@
 /**************** structs ****************/
 
 // Node in the set
-typedef struct set_node set_node_t;
+typedef struct set_node {
+    int key;
+    void* item;
+    struct set_node *next;
+} set_node_t;
 
 
 // Struct for whole set
