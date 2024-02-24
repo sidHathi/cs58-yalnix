@@ -4,44 +4,100 @@
 #include "traps.h"
 #include "kernel.h"
 #include "syscall_handlers/process_coordination.h"
+#include "syscall_handlers/input_output.h"
+#include "syscall_handlers/synchronization.h"
+#include "syscall_handlers/ipc.h"
 
 // Trap handler for TRAP_KERNEL
 void TrapKernelHandler(UserContext* user_context) {
-  // PSEUDOCODE
-  // switch statement based on user_context.code
-  // call the syscall handler with the corresponding code (use macros from yalnix.h for convenience)
-  // the arguments to syscall are found in the registers, starting with regs[0]
-  // when done, write the return value of the syscall to the user process in regs[0]
-
-  // Checkpoint 2 functionality:
-  TracePrintf(1, "Trap Kernel! Code: %x\n", user_context->code);
+  TracePrintf(1, "Entered TRAP KERNEL with code %x\n", user_context->code);
   int rc;
 
-  memcpy(current_process->usr_ctx, user_context, sizeof(UserContext));
+  // Move user context 
+  // current_process->usr_ctx = user_context;
 
+  // Invoke appropriate syscall handler
   switch (user_context->code) {
-    case YALNIX_DELAY:
-      TracePrintf(1, "Yalnix delay with %d\n", user_context->regs[0]);
-      break;
-    case YALNIX_BRK:
-      TracePrintf(1, "Yalnix BRK with addr %p\n", (void*) user_context->regs[0]);
-      rc = BrkHandler((void*) user_context->regs[0]);
-      break;
     case YALNIX_FORK:
-      TracePrintf(1, "Yalnix fork invoked\n");
+      TracePrintf(1, "TRAP KERNEL: invoking fork syscall handler\n");
       rc = ForkHandler();
       break;
     case YALNIX_EXEC:
-      TracePrintf(1, "Yalnix exec invoked with filename: %s, argvec: %p\n", (char*) user_context->regs[0], (char**) user_context->regs[1]);
+      TracePrintf(1, "TRAP KERNEL: invoking exec syscall handler with filename %s", (char*) user_context->regs[0]);
       rc = ExecHandler((char*) user_context->regs[0], (char**) user_context->regs[1]);
       break;
-    case YALNIX_WAIT:
-      TracePrintf(1, "Yalnix wait invoked with pid %d\n", user_context->regs[0]);
-      rc = WaitHandler(user_context, (int*) user_context->regs[0]);
-      break;
     case YALNIX_EXIT:
-      TracePrintf(1, "Yalnix exit invoked with status %d\n", user_context->regs[0]);
+      TracePrintf(1, "TRAP KERNEL: invoking exit syscall handler with status %d\n", user_context->regs[0]);
       ExitHandler(user_context->regs[0]);
+      rc = user_context->regs[0];
+      break;
+    // case YALNIX_WAIT:
+    //   TracePrintf(1, "TRAP KERNEL: invoking wait syscall handler with pid %d\n", user_context->regs[0]);
+    //   rc = WaitHandler(user_context, (int*) user_context->regs[0]);
+    //   break;
+    case YALNIX_GETPID:
+      TracePrintf(1, "TRAP KERNEL: invoking getpid syscall handler\n");
+      rc= GetPidHandler();
+      break;
+    case YALNIX_BRK:
+      TracePrintf(1, "TRAP KERNEL: invoking brk syscall handler with addr %p\n", (void*) user_context->regs[0]);
+      rc = BrkHandler((void*) user_context->regs[0]);
+      break;
+    case YALNIX_DELAY:
+      TracePrintf(1, "TRAP KERNEL: invoking delay syscall handler with %d ticks\n", user_context->regs[0]);
+      rc = DelayHandler((int) user_context->regs[0]);
+      break;
+    case YALNIX_TTY_READ:
+      TracePrintf(1, "TRAP KERNEL: invoking tty read syscall handler on terminal %d\n", user_context->regs[0]);
+      rc = TtyReadHandler((int) user_context->regs[0], (void*) user_context->regs[1], (int) user_context->regs[2]);
+      break;
+    case YALNIX_TTY_WRITE:
+      TracePrintf(1, "TRAP KERNEL: invoking tty write syscall handler on terminal %d\n", user_context->regs[0]);
+      rc = TtyWriteHandler((int) user_context->regs[0], (void*) user_context->regs[1], (int) user_context->regs[2]);
+      break;
+    case YALNIX_PIPE_INIT:
+      TracePrintf(1, "TRAP KERNEL: invoking pipe init syscall handler with identifier %d\n", *(int*)(user_context->regs[0]));
+      rc = PipeInitHandler((int*) user_context->regs[0]);
+      break;
+    case YALNIX_PIPE_READ:
+      TracePrintf(1, "TRAP KERNEL: invoking pipe read syscall handler on pipe %d\n", user_context->regs[0]);
+      rc = PipeReadHandler((int) user_context->regs[0], (void*) user_context->regs[1], (int) user_context->regs[2]);
+      break;
+    case YALNIX_PIPE_WRITE:
+      TracePrintf(1, "TRAP KERNEL: invoking pipe write syscall handler on pipe %d\n", user_context->regs[0]);
+      rc = PipeWriteHandler((int) user_context->regs[0], (void*) user_context->regs[1], (int) user_context->regs[2]);
+      break;
+    case YALNIX_LOCK_INIT:
+      TracePrintf(1, "TRAP KERNEL: invoking lock init syscall handler with identifier %d\n", *(int*)user_context->regs[0]);
+      rc = LockInitHandler((int*) user_context->regs[0]);
+      break;
+    case YALNIX_LOCK_ACQUIRE:
+      TracePrintf(1, "TRAP KERNEL: invoking lock acquire syscall handler with identifier %d\n", user_context->regs[0]);
+      rc = AcquireLockHandler((int) user_context->regs[0]);
+      break;
+    case YALNIX_LOCK_RELEASE:
+      TracePrintf(1, "TRAP KERNEL: invoking lock release syscall handler with identifier %d\n", *(int*)user_context->regs[0]);
+      rc = ReleaseLockHandler((int) user_context->regs[0]);
+      break;
+    case YALNIX_CVAR_INIT:
+      TracePrintf(1, "TRAP KERNEL: invoking cvar init syscall handler with identifier %d\n", *(int*)user_context->regs[0]);
+      rc = CvarInitHandler((int*) user_context->regs[0]);
+      break;
+    case YALNIX_CVAR_SIGNAL:
+      TracePrintf(1, "TRAP KERNEL: invoking cvar signal syscall handler on cvar %d\n", user_context->regs[0]);
+      rc = CvarSignalHandler((int) user_context->regs[0]);
+      break;
+    case YALNIX_CVAR_BROADCAST:
+      TracePrintf(1, "TRAP KERNEL: invoking cvar broadcast syscall handler on cvar %d\n", user_context->regs[0]);
+      rc = CvarBroadcastHandler((int) user_context->regs[0]);
+      break;
+    case YALNIX_CVAR_WAIT:
+      TracePrintf(1, "TRAP KERNEL: invoking cvar wait syscall handler with on cvar %d and lock %d\n", user_context->regs[0], user_context->regs[1]);
+      rc = CvarWaitHandler((int) user_context->regs[0], (int) user_context->regs[1]);
+      break;
+    case YALNIX_RECLAIM:
+      TracePrintf(1, "TRAP KERNEL: invoking reclaim syscall handler on lock %d\n", user_context->regs[0]);
+      rc = ReclaimHandler((int) user_context->regs[0]);
       break;
     default:
       TracePrintf(1, "Oops! Invalid Trap Kernel Code %x\n", user_context->code);
@@ -51,61 +107,44 @@ void TrapKernelHandler(UserContext* user_context) {
   if (current_process != NULL) {
     current_process->usr_ctx->regs[0] = rc;
   }
-  ScheduleNextProcess(user_context);
 }
 
-pcb_t*
-find_blocked_process(int pid)
-{
-  lnode_t* curr = blocked_pcb_list->front;
-  pcb_t* process = NULL;
-  while (curr != NULL && process == NULL) {
-    if (((pcb_t*) curr->data)->pid == pid) {
-      process = (pcb_t*) curr->data;
-    }
-    curr = curr->next;
+// pcb_t*
+// find_blocked_process(int pid)
+// {
+//   lnode_t* curr = blocked_pcbs->head;
+//   pcb_t* process = NULL;
+//   while (curr != NULL && process == NULL) {
+//     if (((pcb_t*) curr->data)->pid == pid) {
+//       process = (pcb_t*) curr->data;
+//     }
+//     curr = curr->next;
+//   }
+//   return process;
+// }
+
+static void decrementTicksHelper(void* arg, int key, void* item) {
+  pcb_t* pcb = (pcb_t*) item;
+  pcb->delay_ticks--;
+  if (pcb->delay_ticks == 0) {
+    TracePrintf(1, "Moving process %s from delay list to ready queue\n", key);
   }
-  return process;
+  set_pop(delayed_pcbs, key);
+  queuePush(process_ready_queue, pcb);
 }
 
 // Trap handler for TRAP_CLOCK
 void TrapClockHandler(UserContext* user_context) {
-  // PSEUDOCODE
-  // if there are processes waiting on the ready queue, invoke the scheduler to move the next process to running
-  // if there are no processes waiting on the ready queue:
-    // if there is a process currently running, do nothing
-    // if there is no process currently running, dispatch idle
-
-  // Checkpoint 2 functionality:
   TracePrintf(1, "Trap Clock!\n");
-  memcpy(current_process->usr_ctx, user_context, sizeof(UserContext));
 
-  // Checkpoint 3
+  current_process->usr_ctx = user_context;
+  // memcpy(current_process->usr_ctx, user_context, sizeof(UserContext));
+
   // Decrement delay count for all delayed processes. If any get to 0,  move them to the ready queue
-  if (delayed_pcb_list != NULL && delayed_pcb_list->front != NULL) {
-    lnode_t* delay_node = delayed_pcb_list->front;
-    while (delay_node != NULL) {
-      pcb_t* delay_pcb = (pcb_t*) delay_node->data;
-      if (delay_pcb == NULL) {
-        TracePrintf(1, "Invalid PCB in delay list!\n");
-        Halt();
-      }
-      delay_pcb->delay_ticks--;
-      if (delay_pcb->delay_ticks == 0) {
-        TracePrintf(1, "Moving %s from delay list to ready queue\n", delay_node->key);
-        pcb_t* removed_pcb = (pcb_t*) linked_list_remove(delayed_pcb_list, (int)(delay_node->key));
-        free(removed_pcb);
-        queuePush(process_ready_queue, delay_pcb);
-      }
-      delay_node = delay_node->next;
-    }
-  }
+  set_iterate(delayed_pcbs, NULL, decrementTicksHelper);
   
-  // Invoke scheduler
-  TracePrintf(1, "Invoking scheduler\n");
-  // helper_check_heap("before");
+  // Invoke Scheduler
   ScheduleNextProcess(user_context);
-  // helper_check_heap("after");
 }
 
 // Trap handler for TRAP_ILLEGAL

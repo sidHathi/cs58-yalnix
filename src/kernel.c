@@ -1,34 +1,18 @@
+#include <fcntl.h>
+#include <unistd.h>
+#include <ctype.h>
 #include <yalnix.h>
 #include <ykernel.h>
 #include <yuser.h>
 #include <hardware.h>
-#include "datastructures/queue.h"
-#include "datastructures/linked_list.h"
-#include "kernel.h"
-#include <ykernel.h>
 #include <load_info.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <ctype.h>
+#include "kernel.h"
 #include "traps.h"
+#include "datastructures/queue.h"
 #include "datastructures/pcb.h"
-#include "datastructures/memory_cache.h"
+#include "datastructures/set.h"
 #include "programs/idle.h"
 
-void *my_malloc(size_t size, const char *file, int line, const char*func) {
-  TracePrintf(1, "Calling malloc. File: %s. Line: %d, Func: %s\n", file, line, func);
-  #undef malloc
-  void* data = malloc(size);
-  #define malloc(X) my_malloc( X, __FILE__, __LINE__, __FUNCTION__ )
-  TracePrintf(1, "");
-  return data;
-}
-void my_free(void *ptr) {
-  #undef free
-  TracePrintf(1, "Calling freeing\n");
-  free(ptr);
-  #define free(X) my_free( X )
-}
 
 // Macros that enumerate page table regions
 #define REGION_UNUSED 0
@@ -38,22 +22,37 @@ void my_free(void *ptr) {
 #define REGION_KERNEL_STACK 4
 
 // Initialize globals
-unsigned long kernel_brk_offset = 0;
-unsigned int virtual_mem_enabled = 0;
-unsigned int num_blocked_processes = 0;
-unsigned int num_ready_processes = 0;
-unsigned int num_dead_processes = 0;
-char* tty_buffers[NUM_TERMINALS];
-queue_t* free_frame_queue = NULL;
-pte_t region_0_pages[VMEM_REGION_SIZE/PAGESIZE];
-pte_t region_1_pages[VMEM_REGION_SIZE/PAGESIZE];
-queue_t* process_ready_queue = NULL;
-linked_list_t* blocked_pcb_list = NULL;
-linked_list_t* dead_pcb_list = NULL;
-linked_list_t* delayed_pcb_list = NULL;
 pcb_t* current_process = NULL;
 pcb_t* init_process = NULL;
 pcb_t* idle_process = NULL;
+queue_t* process_ready_queue;
+set_t* delayed_pcbs = NULL;
+set_t* dead_pcbs = NULL;
+set_t* blocked_pcbs = NULL;
+char* tty_buffers[NUM_TERMINALS];
+queue_t* free_frame_queue;
+pte_t region_0_pages[NUM_PAGES];
+pte_t region_1_pages[NUM_PAGES];
+unsigned int virtual_mem_enabled = 0;
+unsigned long kernel_brk_offset = 0;
+
+// Old initializations
+// unsigned long kernel_brk_offset = 0;
+// unsigned int virtual_mem_enabled = 0;
+// unsigned int num_blocked_processes = 0;
+// unsigned int num_ready_processes = 0;
+// unsigned int num_dead_processes = 0;
+// char* tty_buffers[NUM_TERMINALS];
+// queue_t* free_frame_queue = NULL;
+// pte_t region_0_pages[VMEM_REGION_SIZE/PAGESIZE];
+// pte_t region_1_pages[VMEM_REGION_SIZE/PAGESIZE];
+// queue_t* process_ready_queue = NULL;
+// linked_list_t* blocked_pcb_list = NULL;
+// linked_list_t* dead_pcb_list = NULL;
+// linked_list_t* delayed_pcb_list = NULL;
+// pcb_t* current_process = NULL;
+// pcb_t* init_process = NULL;
+// pcb_t* idle_process = NULL;
 
 
 // local helper function prototyes
@@ -331,13 +330,10 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   virtual_mem_enabled = 1;
   WriteRegister(REG_VM_ENABLE, 1);
 
-  // 5. Allocate ready, blocked, and dead queues using queue_new functions
+  // 5. Allocate ready, blocked, and dead sets using set_new functions
   process_ready_queue = queueCreate();
-  num_ready_processes = 0;
-  blocked_pcb_list = linked_list_create();
-  num_blocked_processes = 0;
-  dead_pcb_list = linked_list_create();
-  num_dead_processes = 0;
+  blocked_pcbs = set_new();
+  dead_pcbs = set_new();
   current_process = NULL;
 
   // 6. Allocate the interrupt vector and put the address in the appropriate register
@@ -348,10 +344,8 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
     TracePrintf(1, "Successfully registered trap handlers.\n");
   }
 
-  // CHECKPOINT 3:
-  // Set up empty delay linked list
-  delayed_pcb_list = linked_list_create();
-  helper_check_heap("331");
+  // Set up empty delay set
+  delayed_pcbs = set_new();
 
   // Set up the idle pcb
   int* idle_sf1_pointer = (int*)queuePop(free_frame_queue); // should switch this to a bit vector soon
@@ -562,17 +556,14 @@ enqueue_current_process()
     case READY:
       TracePrintf(1, "adding process with pid %d to ready queue\n", current_process->pid);
       queuePush(process_ready_queue, current_process);
-      num_ready_processes++;
       break;
     case DEAD:
       TracePrintf(1, "adding process with pid %d to dead list\n", current_process->pid);
-      linked_list_push(dead_pcb_list, current_process);
-      num_dead_processes++;
+      set_insert(dead_pcbs, current_process->pid, current_process);
       break;
     case BLOCKED:
       TracePrintf(1, "adding process with pid %d to blocked list\n", current_process->pid);
-      linked_list_push(blocked_pcb_list, current_process);
-      num_blocked_processes++;
+      set_insert(blocked_pcbs, current_process->pid, current_process);
       break;
     default:
       TracePrintf(1, "ERROR: Invalid process state for pid: %d\n", current_process->pid);
@@ -605,7 +596,6 @@ ScheduleNextProcess(UserContext* user_context)
     KernelContextSwitch(&KCSwitch, current_process, idle_process);
   } else { // Round robin schedule
     TracePrintf(1, "Scheduler: Switching to process w/ pid %d from process w/ pid %d\n", next_process->pid, current_process != NULL ? current_process->pid : -1);
-    num_ready_processes--;
     enqueue_current_process();
     WriteRegister(REG_PTBR1, (unsigned int) next_process->page_table);
     KernelContextSwitch(&KCSwitch, current_process, next_process);

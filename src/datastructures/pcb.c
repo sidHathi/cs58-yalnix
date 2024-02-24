@@ -2,6 +2,7 @@
 #include <ylib.h>
 #include <hardware.h>
 #include "kernel.h"
+#include "set.h"
 
 pcb_t*
 pcbNew(
@@ -26,8 +27,8 @@ pcbNew(
   new_pcb->state = READY;
   new_pcb->pid = pid;
   new_pcb->delay_ticks = 0;
-  new_pcb->children = linked_list_create();
-  new_pcb->zombies = linked_list_create();
+  new_pcb->children = set_new();
+  new_pcb->zombies = set_new();
   new_pcb->parent = parent;
   new_pcb->page_table = initial_page_table;
   new_pcb->usr_ctx = (UserContext*) malloc(sizeof(UserContext));
@@ -49,27 +50,19 @@ pcbNew(
   return new_pcb;
 }
 
+static void setParentHelper(void* arg, int key, void* item) {
+  ((pcb_t*) item)->parent = (pcb_t*) arg;
+}
+
 void
 pcbOrphanChildren(pcb_t* pcb)
 {
   if (pcb->children != NULL) {
-    lnode_t* curr = pcb->children->front;
-    while (curr != NULL) {
-      pcb_t* child = (pcb_t*)curr->data;
-      child->parent = init_process;
-
-      curr = curr->next;
-    }
+    set_iterate(pcb->children, init_process, setParentHelper);
   }
 
   if (pcb->zombies != NULL) {
-    lnode_t* curr = pcb->zombies->front;
-    while (curr != NULL) {
-      pcb_t* zombie = (pcb_t*)curr->data;
-      zombie->parent = init_process;
-
-      curr = curr->next;
-    }
+    set_iterate(pcb->zombies, init_process, setParentHelper);
   }
 }
 
@@ -103,11 +96,11 @@ pcbFree(pcb_t* pcb, queue_t* free_frame_queue)
     pcb->page_table = NULL;
   }
   if (pcb->children != NULL) {
-    linked_list_free(pcb->children, NULL);
+    set_delete(pcb->children, NULL);
     pcb->children = NULL;
   }
   if (pcb->zombies != NULL) {
-    linked_list_free(pcb->zombies, NULL);
+    set_delete(pcb->zombies, NULL);
     pcb->zombies = NULL;
   }
   if (pcb->usr_ctx != NULL) {
@@ -162,11 +155,11 @@ pcbExit(pcb_t* pcb, queue_t* free_frame_queue)
     pcb->page_table = NULL;
   }
   if (pcb->children != NULL) {
-    linked_list_free(pcb->children, NULL);
+    set_delete(pcb->children, NULL);
     pcb->children = NULL;
   }
   if (pcb->zombies != NULL) {
-    linked_list_free(pcb->zombies, NULL);
+    set_delete(pcb->zombies, NULL);
     pcb->zombies = NULL;
   }
   if (pcb->usr_ctx != NULL) {

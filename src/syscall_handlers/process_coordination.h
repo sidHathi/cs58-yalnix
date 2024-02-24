@@ -1,6 +1,5 @@
 #include <yalnix.h>
 #include <ykernel.h>
-#include "../datastructures/linked_list.h"
 
 /*
 * Fork:

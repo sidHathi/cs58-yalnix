@@ -3,43 +3,44 @@
 #include <unistd.h>
 #include "../kernel.h"
 #include "../datastructures/pcb.h"
-#include "../datastructures/linked_list.h"
+#include "../datastructures/set.h"
 #include "process_coordination.h"
+#include "../datastructures/set.h"
 
 // helper function for pcb list management:
 // removes the pcb with pid `pid` from the `list`
 // of pcb_t pointers
-void
-pcb_list_remove(linked_list_t* list, int pid) {
-  if (list == NULL) {
-    return;
-  }
-  lnode_t* curr = list->front;
-  while (curr != NULL) {
-    lnode_t* next = curr->next;
-    if (((pcb_t*) (curr->data))->pid == pid) {
-      if (curr->prev != NULL) {
-        curr->prev->next = curr->next;
-        if (curr->next != NULL) {
-          curr->next->prev = curr->prev;
-        } else {
-          list->rear = curr->prev;
-        }
-      } else {
-        list->front = curr->next;
-        if (list->front != NULL) {
-          list->front->prev = NULL;
-        } else {
-          list->rear = NULL;
-        }
-      }
-      // pcbFree((pcb_t*)curr->data, free_frame_queue);
-      free(curr);
-      break;
-    }
-    curr = next;
-  }
-}
+// void
+// pcb_list_remove(linked_list_t* list, int pid) {
+//   if (list == NULL) {
+//     return;
+//   }
+//   lnode_t* curr = list->front;
+//   while (curr != NULL) {
+//     lnode_t* next = curr->next;
+//     if (((pcb_t*) (curr->data))->pid == pid) {
+//       if (curr->prev != NULL) {
+//         curr->prev->next = curr->next;
+//         if (curr->next != NULL) {
+//           curr->next->prev = curr->prev;
+//         } else {
+//           list->rear = curr->prev;
+//         }
+//       } else {
+//         list->front = curr->next;
+//         if (list->front != NULL) {
+//           list->front->prev = NULL;
+//         } else {
+//           list->rear = NULL;
+//         }
+//       }
+//       // pcbFree((pcb_t*)curr->data, free_frame_queue);
+//       free(curr);
+//       break;
+//     }
+//     curr = next;
+//   }
+// }
 
 int ForkHandler() {
 
@@ -158,14 +159,13 @@ int ForkHandler() {
 
   TracePrintf(1, "Fork Handler: adding new pcb to current process children\n");
   if (current_process->children == NULL) {
-    current_process->children = linked_list_create();
+    current_process->children = set_new();
   }
-  linked_list_push(current_process->children, new_pcb);
+  set_insert(current_process->children, new_pcb->pid, new_pcb);
 
   // add the process to the ready queue
   TracePrintf(1, "Fork Handler: adding new pcb to ready queue\n");
   queuePush(process_ready_queue, new_pcb);
-  num_ready_processes ++;
   // Use `KCCopy` to copy the kernel context into the new pcb and populate the kernel stack frames with data
   TracePrintf(1, "Fork Handler: executing kccopy\n");
   KernelContextSwitch(&KCCopy, new_pcb, NULL);
@@ -251,18 +251,16 @@ void ExitHandler(int status) {
     return;
   }
   // remove from children list
-  pcb_list_remove(parent_pcb->children, current_process->pid);
+  set_pop(parent_pcb->children, current_process->pid);
 
   // if the parent of this process is waiting -> unblock it and add it to ready queue -> if not, add to zombies list
   if (parent_pcb->waiting) {
     TracePrintf(1, "Exit handler: parent process waiting -> unblocking\n");
     parent_pcb->state = READY;
     queuePush(process_ready_queue, parent_pcb);
-    num_ready_processes ++;
 
     // remove parent from blocked process list
-    pcb_list_remove(blocked_pcb_list, parent_pcb->pid);
-    num_blocked_processes --;
+    set_pop(blocked_pcbs, parent_pcb->pid);
     
     // free current pcb
     // TracePrintf(1, "Exit handler: freeing current pcb\n");
@@ -273,98 +271,99 @@ void ExitHandler(int status) {
     }
   } else {
     // add process as zombie
-    linked_list_push(parent_pcb->zombies, current_process);
+    set_insert(parent_pcb->zombies, current_process->pid, current_process);
     // add to dead process list
-    linked_list_push(dead_pcb_list, current_process);
-    num_dead_processes ++;
+    set_insert(dead_pcbs, current_process->pid, current_process);
   }
   pcbExit(current_process, free_frame_queue);
   parent_pcb->child_exit_status = status;
   TracePrintf(1, "Leaving exit handler\n");
 }
 
-int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
-  // unlock the lock of the status so that another process can use
-  // get the PID and exit status returned by a child process of the calling program
+// int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
+//   // unlock the lock of the status so that another process can use
+//   // get the PID and exit status returned by a child process of the calling program
   
-  // if calling process has a child who has exited, return with that information
+//   // if calling process has a child who has exited, return with that information
 
-  // else if calling process has no children, return Error
+//   // else if calling process has no children, return Error
 
-  // else:
-  //  while waiting our turn for the status - waiting till next child exits or is aborted
-  //      chill
-  //      if status or cond that we are waiting for is found,
-  //          grab the lock, lock the process,
-  //          return so that process can continue in the code. - child PID should be returned
-  //          ** if the status_ptr is not null, just set the Child PID to that pointer
+//   // else:
+//   //  while waiting our turn for the status - waiting till next child exits or is aborted
+//   //      chill
+//   //      if status or cond that we are waiting for is found,
+//   //          grab the lock, lock the process,
+//   //          return so that process can continue in the code. - child PID should be returned
+//   //          ** if the status_ptr is not null, just set the Child PID to that pointer
 
 
-  if (current_process == NULL || current_process->children == NULL || current_process->zombies == NULL) {
-    TracePrintf(1, "current process is not valid in wait handler\n");
-    return ERROR;
-  }
+//   if (current_process == NULL || current_process->children == NULL || current_process->zombies == NULL) {
+//     TracePrintf(1, "current process is not valid in wait handler\n");
+//     return ERROR;
+//   }
 
-  // check to make sure the status pointer is not null and valid -> 
-  // if it isn't, we just won't use it
-  int shouldStoreStatus = 1;
-  if (status_ptr == NULL || !check_memory_validity(status_ptr)) {
-    TracePrintf(1, "invalid status pointer passed into wait handler\n");
-    shouldStoreStatus = 0;
-  }
+//   // check to make sure the status pointer is not null and valid -> 
+//   // if it isn't, we just won't use it
+//   int shouldStoreStatus = 1;
+//   if (status_ptr == NULL || !check_memory_validity(status_ptr)) {
+//     TracePrintf(1, "invalid status pointer passed into wait handler\n");
+//     shouldStoreStatus = 0;
+//   }
 
-  // if wait is called while the process has already exited zombie children,
-  // it should remove the zombies, free their pcbs, and exit immediately
-  if (current_process->zombies != NULL && current_process->zombies->front != NULL) {
-    TracePrintf(1, "WaitHandler: child has already exited -> removing zombies and returning \n");
-    lnode_t* curr_zombie_node = current_process->zombies->front;
-    int exit_status = ((pcb_t*)current_process->zombies->front->data)->exit_status;
+//   // if wait is called while the process has already exited zombie children,
+//   // it should remove the zombies, free their pcbs, and exit immediately
+//   if (current_process->zombies != NULL && current_process->zombies->front != NULL) {
+//     TracePrintf(1, "WaitHandler: child has already exited -> removing zombies and returning \n");
+//     lnode_t* curr_zombie_node = current_process->zombies->front;
+//     int exit_status = ((pcb_t*)current_process->zombies->front->data)->exit_status;
 
-    // empty zombie list
-    while (curr_zombie_node != NULL) {
-      // remove zombie from the dead process list
-      int zombie_pid = ((pcb_t*) curr_zombie_node->data)->pid;
-      pcb_list_remove(dead_pcb_list, zombie_pid);
-      num_dead_processes --;
+//     // empty zombie list
+//     while (curr_zombie_node != NULL) {
+//       // remove zombie from the dead process list
+//       int zombie_pid = ((pcb_t*) curr_zombie_node->data)->pid;
+//       pcb_t* zombie_pcb = set_pop(dead_pcbs, zombie_pid);
+//       if (zombie_pcb != NULL) {
+//         pcbFree(zombie_pcb, free_frame_queue);
+//       }
 
-      // free associated data and move to next node
-      lnode_t* next_zombie_node = curr_zombie_node->next;
-      helper_retire_pid(((pcb_t*)curr_zombie_node->data)->pid);
-      pcbFree((pcb_t*)curr_zombie_node->data, free_frame_queue);
-      free(curr_zombie_node);
-      curr_zombie_node = next_zombie_node;
-    }
-    // mark list as emptied
-    current_process->zombies->front = current_process->zombies->front = NULL;
-    if (shouldStoreStatus) {
-      memcpy(status_ptr, &exit_status, sizeof(int));
-    }
+//       // free associated data and move to next node
+//       lnode_t* next_zombie_node = curr_zombie_node->next;
+//       helper_retire_pid(((pcb_t*)curr_zombie_node->data)->pid);
+//       pcbFree((pcb_t*)curr_zombie_node->data, free_frame_queue);
+//       free(curr_zombie_node);
+//       curr_zombie_node = next_zombie_node;
+//     }
+//     // mark list as emptied
+//     current_process->zombies->front = current_process->zombies->front = NULL;
+//     if (shouldStoreStatus) {
+//       memcpy(status_ptr, &exit_status, sizeof(int));
+//     }
 
-    return 0;
-  }
+//     return 0;
+//   }
 
-  // check to make sure there are children ->
-    // if none return error val
-  if (current_process->children->front == NULL) {
-    TracePrintf(1, "WaitHandler: current process has no children -> returning \n");
-    return ERROR;
-  }
-  // Otherwise, update the status values in the pcb
-  current_process->waiting = 1;
-  current_process->state = BLOCKED;
-  TracePrintf(1, "WaitHandler: blocking current process \n");
-  // don't return until the current process is unblocked
-  while (current_process->waiting && current_process->state == BLOCKED) {
-    TracePrintf(1, "WaitHandler: invoking scheduler \n");
-    ScheduleNextProcess(usr_ctx);
-    // the scheduler should return here when we switch back to the waiting process
-  }
-  // set status pointer
-  if (shouldStoreStatus) {
-    memcpy(status_ptr, &current_process->child_exit_status, sizeof(int));
-  }
-  return 0;
-}
+//   // check to make sure there are children ->
+//     // if none return error val
+//   if (current_process->children->front == NULL) {
+//     TracePrintf(1, "WaitHandler: current process has no children -> returning \n");
+//     return ERROR;
+//   }
+//   // Otherwise, update the status values in the pcb
+//   current_process->waiting = 1;
+//   current_process->state = BLOCKED;
+//   TracePrintf(1, "WaitHandler: blocking current process \n");
+//   // don't return until the current process is unblocked
+//   while (current_process->waiting && current_process->state == BLOCKED) {
+//     TracePrintf(1, "WaitHandler: invoking scheduler \n");
+//     ScheduleNextProcess(usr_ctx);
+//     // the scheduler should return here when we switch back to the waiting process
+//   }
+//   // set status pointer
+//   if (shouldStoreStatus) {
+//     memcpy(status_ptr, &current_process->child_exit_status, sizeof(int));
+//   }
+//   return 0;
+// }
 
 int GetPidHandler() {
   // find the pcb for this process
@@ -463,7 +462,7 @@ int DelayHandler(int clock_ticks) {
     // make the current process sleep for the number of clock ticks.
     TracePrintf(1, "Pushing process %d to delay list\n", current_process->pid);
     current_process->delay_ticks = clock_ticks;
-    linked_list_push(delayed_pcb_list, current_process);
+    set_insert(delayed_pcbs, current_process->pid, current_process);
     
     // delay_node_data_t* data = (delay_node_data_t*) malloc(sizeof(delay_node_data_t));
     // data->clock_ticks = clock_ticks;
