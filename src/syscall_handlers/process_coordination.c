@@ -463,6 +463,7 @@ int DelayHandler(int clock_ticks) {
     TracePrintf(1, "Pushing process %d to delay list\n", current_process->pid);
     current_process->delay_ticks = clock_ticks;
     set_insert(delayed_pcbs, current_process->pid, current_process);
+    ScheduleNextProcess(current_process->usr_ctx);
     
     // delay_node_data_t* data = (delay_node_data_t*) malloc(sizeof(delay_node_data_t));
     // data->clock_ticks = clock_ticks;

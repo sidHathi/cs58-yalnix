@@ -15,6 +15,7 @@ void TrapKernelHandler(UserContext* user_context) {
 
   // Move user context 
   // current_process->usr_ctx = user_context;
+  memcpy(current_process->usr_ctx, user_context, sizeof(UserContext));
 
   // Invoke appropriate syscall handler
   switch (user_context->code) {
@@ -137,7 +138,8 @@ static void decrementTicksHelper(void* arg, int key, void* item) {
 void TrapClockHandler(UserContext* user_context) {
   TracePrintf(1, "Trap Clock!\n");
 
-  current_process->usr_ctx = user_context;
+  // current_process->usr_ctx = user_context;
+  memcpy(current_process->usr_ctx, user_context, sizeof(UserContext));
   // memcpy(current_process->usr_ctx, user_context, sizeof(UserContext));
 
   // Decrement delay count for all delayed processes. If any get to 0,  move them to the ready queue
