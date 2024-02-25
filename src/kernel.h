@@ -6,6 +6,7 @@
 #include "datastructures/queue.h"
 #include "datastructures/linked_list.h"
 #include "datastructures/pcb.h"
+#include "tty_state.h"
 
 void *my_malloc(size_t size, const char *file, int line, const char*func);
 void my_free(void *ptr);
@@ -57,6 +58,9 @@ extern pcb_t* current_process;
 
 // init process
 extern pcb_t* init_process;
+
+// OS terminal state
+extern tty_state_t* current_tty_state;
 
 // Function passed into KernelContextSwitch to manage pcbs and kernel during process process switching
 KernelContext* KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p);

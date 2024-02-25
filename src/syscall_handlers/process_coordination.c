@@ -6,40 +6,6 @@
 #include "../datastructures/linked_list.h"
 #include "process_coordination.h"
 
-// helper function for pcb list management:
-// removes the pcb with pid `pid` from the `list`
-// of pcb_t pointers
-void
-pcb_list_remove(linked_list_t* list, int pid) {
-  if (list == NULL) {
-    return;
-  }
-  lnode_t* curr = list->front;
-  while (curr != NULL) {
-    lnode_t* next = curr->next;
-    if (((pcb_t*) (curr->data))->pid == pid) {
-      if (curr->prev != NULL) {
-        curr->prev->next = curr->next;
-        if (curr->next != NULL) {
-          curr->next->prev = curr->prev;
-        } else {
-          list->rear = curr->prev;
-        }
-      } else {
-        list->front = curr->next;
-        if (list->front != NULL) {
-          list->front->prev = NULL;
-        } else {
-          list->rear = NULL;
-        }
-      }
-      // pcbFree((pcb_t*)curr->data, free_frame_queue);
-      free(curr);
-      break;
-    }
-    curr = next;
-  }
-}
 
 int ForkHandler() {
 
@@ -251,7 +217,7 @@ void ExitHandler(int status) {
     return;
   }
   // remove from children list
-  pcb_list_remove(parent_pcb->children, current_process->pid);
+  pcbListRemove(parent_pcb->children, current_process->pid);
 
   // if the parent of this process is waiting -> unblock it and add it to ready queue -> if not, add to zombies list
   if (parent_pcb->waiting) {
@@ -261,7 +227,7 @@ void ExitHandler(int status) {
     num_ready_processes ++;
 
     // remove parent from blocked process list
-    pcb_list_remove(blocked_pcb_list, parent_pcb->pid);
+    pcbListRemove(blocked_pcb_list, parent_pcb->pid);
     num_blocked_processes --;
     
     // free current pcb
@@ -324,7 +290,7 @@ int WaitHandler(UserContext* usr_ctx, int *status_ptr) {
     while (curr_zombie_node != NULL) {
       // remove zombie from the dead process list
       int zombie_pid = ((pcb_t*) curr_zombie_node->data)->pid;
-      pcb_list_remove(dead_pcb_list, zombie_pid);
+      pcbListRemove(dead_pcb_list, zombie_pid);
       num_dead_processes --;
 
       // free associated data and move to next node

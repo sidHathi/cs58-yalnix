@@ -54,6 +54,7 @@ linked_list_t* delayed_pcb_list = NULL;
 pcb_t* current_process = NULL;
 pcb_t* init_process = NULL;
 pcb_t* idle_process = NULL;
+tty_state_t* current_tty_state = NULL;
 
 
 // local helper function prototyes
@@ -424,10 +425,9 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
     return;
   }
 
-  // add the idle pcb to the ready queue
-  // queuePush(process_ready_queue, idle_process);
-  // num_ready_processes ++;
-
+  // initialize terminals
+  current_tty_state = tty_state_init();
+  
   // set the current process
   current_process = init_process;
   // Use KCCopy to copy the current kernel context into the new pcb

@@ -30,6 +30,12 @@ typedef struct pcb {
 	UserContext* usr_ctx;
 	KernelContext* krn_ctx; // stored on process switch
 	pte_t* kernel_stack_pages;
+	void* tty_read_buffer_r0; // region 0 addr
+	void* tty_read_buffer_r1; // region 1 addr
+	int tty_has_bytes; // boolean -> is there unconsumed terminal input in the pcb
+	int tty_num_bytes_requested; // how many bytes of input is the process waiting for?
+	int tty_num_bytes_read; // how many bytes were read into tty_read_buffer_r0
+	int tty_write_waiting;
 } pcb_t;
 
 pcb_t* pcbNew(
@@ -40,6 +46,12 @@ pcb_t* pcbNew(
   UserContext* initial_user_ctx, 
   KernelContext* krn_ctx
 );
+
+// helper function for pcb list management:
+// removes the pcb with pid `pid` from the `list`
+// of pcb_t pointers
+void
+pcbListRemove(linked_list_t* list, int pid);
 
 // frees the entire pcb
 void pcbFree(pcb_t* pcb, queue_t* free_frame_queue);
