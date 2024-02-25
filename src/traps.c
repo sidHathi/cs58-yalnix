@@ -13,8 +13,6 @@ void TrapKernelHandler(UserContext* user_context) {
   TracePrintf(1, "Entered TRAP KERNEL with code %x\n", user_context->code);
   int rc;
 
-  // Move user context 
-  // current_process->usr_ctx = user_context;
   memcpy(current_process->usr_ctx, user_context, sizeof(UserContext));
 
   // Invoke appropriate syscall handler
@@ -110,41 +108,31 @@ void TrapKernelHandler(UserContext* user_context) {
   }
 }
 
-// pcb_t*
-// find_blocked_process(int pid)
-// {
-//   lnode_t* curr = blocked_pcbs->head;
-//   pcb_t* process = NULL;
-//   while (curr != NULL && process == NULL) {
-//     if (((pcb_t*) curr->data)->pid == pid) {
-//       process = (pcb_t*) curr->data;
-//     }
-//     curr = curr->next;
-//   }
-//   return process;
-// }
-
-static void decrementTicksHelper(void* arg, int key, void* item) {
-  pcb_t* pcb = (pcb_t*) item;
-  pcb->delay_ticks--;
-  if (pcb->delay_ticks == 0) {
-    TracePrintf(1, "Moving process %s from delay list to ready queue\n", key);
-  }
-  set_pop(delayed_pcbs, key);
-  queuePush(process_ready_queue, pcb);
-}
 
 // Trap handler for TRAP_CLOCK
 void TrapClockHandler(UserContext* user_context) {
   TracePrintf(1, "Trap Clock!\n");
-
-  // current_process->usr_ctx = user_context;
   memcpy(current_process->usr_ctx, user_context, sizeof(UserContext));
-  // memcpy(current_process->usr_ctx, user_context, sizeof(UserContext));
 
   // Decrement delay count for all delayed processes. If any get to 0,  move them to the ready queue
-  set_iterate(delayed_pcbs, NULL, decrementTicksHelper);
-  
+  set_node_t* node = delayed_pcbs->head;
+  while (node != NULL) {
+    pcb_t* pcb = set_pop(delayed_pcbs, ((pcb_t*)delayed_pcbs->head)->pid);
+    pcb->delay_ticks--;
+    if (pcb->delay_ticks > 0) {
+      TracePrintf(1, "Still delayed\n");
+      set_insert(delayed_pcbs, pcb->pid, pcb);
+    }
+    else {
+      TracePrintf(1, "Ready now\n");
+      pcb->state = READY;
+      queuePush(process_ready_queue, pcb);
+    }
+    node = node->next;
+  }
+
+
+  TracePrintf(1, "B\n");
   // Invoke Scheduler
   ScheduleNextProcess(user_context);
 }

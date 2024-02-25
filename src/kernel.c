@@ -565,6 +565,10 @@ enqueue_current_process()
       TracePrintf(1, "adding process with pid %d to blocked list\n", current_process->pid);
       set_insert(blocked_pcbs, current_process->pid, current_process);
       break;
+    case DELAYED:
+      TracePrintf(1, "adding process with pid %d to delayed list\n", current_process->pid);
+      set_insert(delayed_pcbs, current_process->pid, current_process);
+      break;
     default:
       TracePrintf(1, "ERROR: Invalid process state for pid: %d\n", current_process->pid);
   }

@@ -460,17 +460,10 @@ int DelayHandler(int clock_ticks) {
   }
   else {
     // make the current process sleep for the number of clock ticks.
-    TracePrintf(1, "Pushing process %d to delay list\n", current_process->pid);
+    TracePrintf(1, "In delay handler: pid of current_proccess = %d\n", current_process->pid);
     current_process->delay_ticks = clock_ticks;
-    set_insert(delayed_pcbs, current_process->pid, current_process);
+    current_process->state = DELAYED;
     ScheduleNextProcess(current_process->usr_ctx);
-    
-    // delay_node_data_t* data = (delay_node_data_t*) malloc(sizeof(delay_node_data_t));
-    // data->clock_ticks = clock_ticks;
-    // data->pid = current_process->pid;
-    // linked_list_push(delayed_pcb_list, data);
-    //might need a scheduler call here for the actual delaying of the process that has now been stored in the queue;
-
     return 0;
   }
   return ERROR;

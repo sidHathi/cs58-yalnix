@@ -11,6 +11,7 @@
 #define BLOCKED 1
 #define RUNNING 2
 #define DEAD 3
+#define DELAYED 4
 #define NUM_KSTACK_FRAMES KERNEL_STACK_MAXSIZE/PAGESIZE
 
 typedef struct pcb pcb_t;
