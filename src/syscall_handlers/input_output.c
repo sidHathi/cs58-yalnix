@@ -126,10 +126,13 @@ int TtyWriteHandler(int tty_id, void* buf, int len, UserContext* usr_ctx) {
     current_process->tty_write_waiting = 1;
     ScheduleNextProcess(usr_ctx);
   }
-  
   // this should return when the write operation is finished
+  current_process->tty_write_waiting = 0;
+  
+  // at this point the terminal should also be marked as available
+  current_tty_state->availability[tty_id] = 1;
+  current_tty_state->curr_writers[tty_id] = NULL;
 
   // return success to user
-
   return 0;
 }

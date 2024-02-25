@@ -155,6 +155,19 @@ void TrapTTYReceiveHandler(UserContext* user_context) {
 
   // Checkpoint 2 functionality:
   TracePrintf(1, "Trap TTY Receive! This trap is not yet handled!\n");
+
+  // this trap needs to:
+  // Call TtyReceive to move the data from the terminal into the current
+  // terminal state buffer
+  // call tty_handle_received
+  int tty_id = user_context->code;
+  if (tty_id < 0 || tty_id > NUM_TERMINALS) {
+    TracePrintf(1, "invalid tty_id found in Trap Tty Tranmit\n");
+    return;
+  }
+
+  int receipt_len = TtyReceive(tty_id, current_tty_state->buffers[tty_id], TERMINAL_MAX_LINE);
+  tty_handle_received(current_tty_state, tty_id, receipt_len);
 }
 
 // Trap handler for TRAP_TTY_TRANSMIT
@@ -165,6 +178,35 @@ void TrapTTYTransmitHandler(UserContext* user_context) {
 
   // Checkpoint 2 functionality:
   TracePrintf(1, "Trap TTY Transmit! This trap is not yet handled!\n");
+
+
+  // this trap needs to:
+  // figure out which process is currently writing
+  // unblock it
+  // allow it to continue writing
+  int tty_id = user_context->code;
+  if (tty_id < 0 || tty_id > NUM_TERMINALS) {
+    TracePrintf(1, "invalid tty_id found in Trap Tty Tranmit\n");
+    return;
+  }
+
+  if (current_tty_state == NULL) {
+    TracePrintf(1, "Trap Tty Tranmit called before tty state init\n");
+    return;
+  }
+
+  pcb_t* writing_pcb = current_tty_state->curr_writers[tty_id];
+  if (writing_pcb == NULL) {
+    // mark terminal as available and continue
+    current_tty_state->availability[tty_id] = 1;
+  }
+
+  writing_pcb->state = READY;
+  writing_pcb->tty_write_waiting = 0;
+  pcbListRemove(blocked_pcb_list, writing_pcb->pid);
+  num_blocked_processes --;
+
+  queuePush(process_ready_queue, writing_pcb);
 }
 
 void TrapDiskHandler(UserContext* user_context) {

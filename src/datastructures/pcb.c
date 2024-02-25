@@ -49,6 +49,7 @@ pcbNew(
   new_pcb->tty_read_buffer_r1 = NULL;
   new_pcb->tty_has_bytes = 0;
   new_pcb->tty_num_bytes_read = 0;
+  new_pcb->tty_write_waiting = 0;
 
   return new_pcb;
 }
