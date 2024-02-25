@@ -1,8 +1,11 @@
+#ifndef _tty_state_h
+#define _tty_state_h
+
 #include "queue.h"
 #include "linked_list.h"
 #include "pcb.h"
 
-typedef struct tty_state {
+typedef struct {
   queue_t** write_queues; // array of NUM_TERINALS queues for processes waiting to write
   int* availability; // array of NUM_TERMINALS 0/1 values 
   pcb_t** curr_writers; // array of NUM_TERINALS processes currently writing to a given terminal - NULL if none 
@@ -30,3 +33,5 @@ void tty_handle_received(tty_state_t* tty_state, int tty_id, int num_bytes);
 void tty_buffer_consume(tty_state_t* tty_state, void* receipt_buffer, int tty_id, int num_bytes);
 
 void tty_state_free(tty_state_t* tty_state);
+
+#endif /*!_tty_state_h*/

@@ -105,7 +105,7 @@ tty_buffer_consume(tty_state_t* tty_state, void* receipt_buffer, int tty_id, int
   }
   
   // if all the bytes from the buffer were copied, set it to zero, and set bytes available to zero
-  if (num_bytes_to_copy >= tty_state->bytes_available) {
+  if (num_bytes_to_copy >= tty_state->bytes_available[tty_id]) {
     tty_state->bytes_available = 0;
     memset(tty_state->buffers[tty_id], 0, TERMINAL_MAX_LINE);
     return;
@@ -115,11 +115,18 @@ tty_buffer_consume(tty_state_t* tty_state, void* receipt_buffer, int tty_id, int
   // variable, set the buffer for tty_id to zeros, copy the temp back into
   // the start of the buffer, and set the bytes available to the difference
   // betwen the current bytes available and the number of copied bytes
-  int remaining_bytes = tty_state->bytes_available - num_bytes_to_copy;
+  int remaining_bytes = tty_state->bytes_available[tty_id] - num_bytes_to_copy;
   void* temp_byte_buffer = malloc(sizeof(char) * remaining_bytes);
   memcpy(temp_byte_buffer, tty_state->buffers[tty_id] + num_bytes_to_copy, remaining_bytes);
   memset(tty_state->buffers[tty_id], 0, TERMINAL_MAX_LINE);
   memcpy(tty_state->buffers[tty_id], temp_byte_buffer, remaining_bytes);
   free(temp_byte_buffer);
   tty_state->bytes_available[tty_id] = remaining_bytes;
+}
+
+void
+tty_state_free(tty_state_t* tty_state)
+{
+  // implement later
+  return;
 }

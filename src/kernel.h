@@ -6,7 +6,7 @@
 #include "datastructures/queue.h"
 #include "datastructures/linked_list.h"
 #include "datastructures/pcb.h"
-#include "tty_state.h"
+#include "datastructures/tty_state.h"
 
 void *my_malloc(size_t size, const char *file, int line, const char*func);
 void my_free(void *ptr);
