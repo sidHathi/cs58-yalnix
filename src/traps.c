@@ -188,13 +188,14 @@ void TrapTTYReceiveHandler(UserContext* user_context) {
   // This value is available for user process to copy via TtyRead
 
   // Checkpoint 2 functionality:
-  TracePrintf(1, "Trap TTY Receive! This trap is not yet handled!\n");
+  // TracePrintf(1, "Trap TTY Receive! This trap is not yet handled!\n");
 
   // this trap needs to:
   // Call TtyReceive to move the data from the terminal into the current
   // terminal state buffer
   // call tty_handle_received
   int tty_id = user_context->code;
+  TracePrintf(1, "Trap tty recieve called with tty_id %d\n", tty_id);
   if (tty_id < 0 || tty_id > NUM_TERMINALS) {
     TracePrintf(1, "invalid tty_id found in Trap Tty Tranmit\n");
     return;
@@ -212,7 +213,7 @@ void TrapTTYTransmitHandler(UserContext* user_context) {
   // If there is a next terminal output, display it
 
   // Checkpoint 2 functionality:
-  TracePrintf(1, "Trap TTY Transmit! This trap is not yet handled!\n");
+  // TracePrintf(1, "Trap TTY Transmit! This trap is not yet handled!\n");
 
 
   // this trap needs to:
@@ -220,6 +221,7 @@ void TrapTTYTransmitHandler(UserContext* user_context) {
   // unblock it
   // allow it to continue writing
   int tty_id = user_context->code;
+  TracePrintf(1, "Trap tty transmmit called with tty id %d\n", tty_id);
   if (tty_id < 0 || tty_id > NUM_TERMINALS) {
     TracePrintf(1, "invalid tty_id found in Trap Tty Tranmit\n");
     return;

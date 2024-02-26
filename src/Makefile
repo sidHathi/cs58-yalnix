@@ -19,7 +19,7 @@ K_INCS = $(shell find ./ -name '*.h')
 U_SRC_DIR = ../
 
 # What are the user c and include files?
-U_SRCS = init.c tests/test_exit_wait.c tests/test_fork_exec.c tests/test_simple.c tests/yurr.c
+U_SRCS = init.c tests/test_exit_wait.c tests/test_fork_exec.c tests/test_simple.c tests/yurr.c tests/test_tty_read.c
 U_INCS = 
 
 

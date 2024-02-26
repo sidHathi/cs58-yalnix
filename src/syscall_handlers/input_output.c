@@ -101,6 +101,8 @@ int TtyWriteHandler(int tty_id, void* buf, int len) {
     TracePrintf(1, "invalid input passed into TtyWriteHandler\n");
     return ERROR;
   }
+
+  TracePrintf(1, "Tty write handler called with buffer length %d\n", len);
   // check if the requested terminal is available to write -> block otherwise
   if (!current_tty_state->availability[tty_id]) {
     current_process->state = BLOCKED;
@@ -110,16 +112,19 @@ int TtyWriteHandler(int tty_id, void* buf, int len) {
   while (!current_tty_state->availability[tty_id]) {
     ScheduleNextProcess();
   }
+  TracePrintf(1, "Tty write handler writing\n");
   // at this point the assumption is that the requested terminal is now available
   // copy the data in the buffer into a region 0 location (malloc, memcpy)
   void* r0_write_buffer = malloc(sizeof(char) * len);
+  memcpy(r0_write_buffer, buf, len);
   // mark the current process as the current writer for the buffer
   current_tty_state->curr_writers[tty_id] = current_process;
   // now we have to invoke tty transmit in blocks
   // we can only transmit TERMINAL_MAX_LINE bytes at a time
   // so if len is greater than that value it needs to be broken up
-  for (int start_byte = 0; start_byte < len/TERMINAL_MAX_LINE; start_byte += TERMINAL_MAX_LINE) {
+  for (int start_byte = 0; start_byte <= (len-1)/TERMINAL_MAX_LINE; start_byte += TERMINAL_MAX_LINE) {
     int transmit_size = MIN(len, TERMINAL_MAX_LINE);
+    TracePrintf(1, "Tty write handler invoking TtyTransmit\n");
     TtyTransmit(tty_id, (void*) (r0_write_buffer + start_byte), transmit_size);
     // block and invoke scheduler until write finishes
     current_process->state = BLOCKED;
