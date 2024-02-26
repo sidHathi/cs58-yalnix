@@ -30,10 +30,10 @@ void TrapKernelHandler(UserContext* user_context) {
       ExitHandler(user_context->regs[0]);
       rc = user_context->regs[0];
       break;
-    // case YALNIX_WAIT:
-    //   TracePrintf(1, "TRAP KERNEL: invoking wait syscall handler with pid %d\n", user_context->regs[0]);
-    //   rc = WaitHandler(user_context, (int*) user_context->regs[0]);
-    //   break;
+    case YALNIX_WAIT:
+      TracePrintf(1, "TRAP KERNEL: invoking wait syscall handler with pid %d\n", user_context->regs[0]);
+      rc = WaitHandler((int*) user_context->regs[0]);
+      break;
     case YALNIX_GETPID:
       TracePrintf(1, "TRAP KERNEL: invoking getpid syscall handler\n");
       rc= GetPidHandler();

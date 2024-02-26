@@ -13,6 +13,7 @@ int main(int argc, char* argv[]) {
     Exit(0);
   }
   else {
+    Wait(NULL);
     TracePrintf(1, "I am the parent. Here is my pid: %d\n", GetPid());
     Pause();
     Exit(0);
