@@ -137,6 +137,7 @@ void TrapClockHandler(UserContext* user_context) {
 
   // Invoke Scheduler
   ScheduleNextProcess(user_context);
+  memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
 }
 
 // Trap handler for TRAP_ILLEGAL
@@ -147,6 +148,7 @@ void TrapIllegalHandler(UserContext* user_context) {
 
   // Checkpoint 2 functionality:
   TracePrintf(1, "Trap Illegal! This trap is not yet handled!\n");
+  memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
 }
 
 // Trap handler for TRAP_MEMORY
@@ -174,6 +176,7 @@ void TrapMathHandler(UserContext* user_context) {
 
   // Checkpoint 2 functionality:
   TracePrintf(1, "Trap Math! This trap is not yet handled!\n");
+  memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
 }
 
 // Trap handler for TRAP_TTY_RECEIVE
@@ -199,6 +202,7 @@ void TrapTTYReceiveHandler(UserContext* user_context) {
 
   int receipt_len = TtyReceive(tty_id, current_tty_state->buffers[tty_id], TERMINAL_MAX_LINE);
   tty_handle_received(current_tty_state, tty_id, receipt_len);
+  memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
 }
 
 // Trap handler for TRAP_TTY_TRANSMIT
@@ -234,14 +238,15 @@ void TrapTTYTransmitHandler(UserContext* user_context) {
 
   writing_pcb->state = READY;
   writing_pcb->tty_write_waiting = 0;
-  pcbListRemove(blocked_pcb_list, writing_pcb->pid);
-  num_blocked_processes --;
+  set_pop(blocked_pcbs, writing_pcb->pid);
 
   queuePush(process_ready_queue, writing_pcb);
+  memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
 }
 
 void TrapDiskHandler(UserContext* user_context) {
   TracePrintf(1, "Trap Disk! This funcionality is not required for Yalnix!\n");
+  memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
 }
 
 int RegisterTrapHandlers() {

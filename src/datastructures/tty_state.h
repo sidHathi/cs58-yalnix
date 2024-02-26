@@ -2,14 +2,14 @@
 #define _tty_state_h
 
 #include "queue.h"
-#include "linked_list.h"
+#include "set.h"
 #include "pcb.h"
 
 typedef struct {
   queue_t** write_queues; // array of NUM_TERINALS queues for processes waiting to write
   int* availability; // array of NUM_TERMINALS 0/1 values 
   pcb_t** curr_writers; // array of NUM_TERINALS processes currently writing to a given terminal - NULL if none 
-  linked_list_t** curr_readers; // array of NUM_TERINALS linked lists of processes currently reading from a given terminal
+  set_t** curr_readers; // array of NUM_TERINALS linked lists of processes currently reading from a given terminal
   void** buffers; // NUM_TERMINALS character buffers for each indexed terminal
   int* bytes_available; // number of bytes available to read in each terminal
 } tty_state_t;

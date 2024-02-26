@@ -9,14 +9,14 @@ tty_state_init()
 
   tty_state->availability = malloc(sizeof(int) * NUM_TERMINALS);
   tty_state->curr_writers = malloc(sizeof(pcb_t*) * NUM_TERMINALS);
-  tty_state->curr_readers = malloc(sizeof(linked_list_t*) * NUM_TERMINALS);
+  tty_state->curr_readers = malloc(sizeof(set_t*) * NUM_TERMINALS);
   tty_state->buffers = malloc(sizeof(char*) * NUM_TERMINALS);
   tty_state->bytes_available = malloc(sizeof(int) * NUM_TERMINALS);
   tty_state->write_queues = malloc(sizeof(queue_t*) * NUM_TERMINALS);
   for (int i = 0; i < NUM_TERMINALS; i ++) {
     tty_state->availability[i] = 1; // all terminals initially available
     tty_state->curr_writers[i] = NULL;
-    tty_state->curr_readers[i] = linked_list_create();
+    tty_state->curr_readers[i] = set_new();
     tty_state->buffers[i] = malloc(sizeof(char) * TERMINAL_MAX_LINE);
     tty_state->bytes_available[i] = 0;
     tty_state->write_queues[i] = queueCreate();
@@ -32,7 +32,7 @@ tty_handle_received(tty_state_t* tty_state, int tty_id, int num_bytes)
     return;
   }
 
-  if (tty_state->curr_readers[tty_id]->front == NULL) {
+  if (tty_state->curr_readers[tty_id]->head == NULL) {
     // nobody is waiting to read the received bytes
     // set the bytes_available integer for tty_id to the number of bytes
     // that were just received
@@ -46,13 +46,13 @@ tty_handle_received(tty_state_t* tty_state, int tty_id, int num_bytes)
   // unblock the pcb and mark it has having just received num_bytes from
   // the terminal
   int max_read = 0;
-  lnode_t* curr = tty_state->curr_readers[tty_id]->front;
+  set_node_t* curr = tty_state->curr_readers[tty_id]->head;
   while (curr != NULL) {
-    if (curr->data == NULL) {
+    if (curr->item == NULL) {
       continue;
     }
 
-    pcb_t* proc = (pcb_t*)curr->data;
+    pcb_t* proc = (pcb_t*)curr->item;
     if (proc->tty_read_buffer_r0 == NULL) {
       proc->tty_read_buffer_r0 = malloc(TERMINAL_MAX_LINE * sizeof(char));
     }
@@ -67,15 +67,15 @@ tty_handle_received(tty_state_t* tty_state, int tty_id, int num_bytes)
     // unblock the pcb
     proc->state = READY;
     proc->tty_has_bytes = 1;
-    pcbListRemove(blocked_pcb_list, proc->pid);
+    set_pop(blocked_pcbs, proc->pid);
     queuePush(process_ready_queue, proc);
     
     curr = curr->next;
   }
 
   // at this point all the processes have the information from the terminal input -> none are waiting
-  tty_state->curr_readers[tty_id]->front = NULL;
-  tty_state->curr_readers[tty_id]->rear = NULL;
+  tty_state->curr_readers[tty_id]->head = NULL;
+  tty_state->curr_readers[tty_id]->node_count = 0;
 
   // consume the maximum number of bytes read by the reading processes
   tty_buffer_consume(tty_state, NULL, tty_id, max_read);

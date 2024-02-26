@@ -48,12 +48,6 @@ pcb_t* pcbNew(
   KernelContext* krn_ctx
 );
 
-// helper function for pcb list management:
-// removes the pcb with pid `pid` from the `list`
-// of pcb_t pointers
-void
-pcbListRemove(linked_list_t* list, int pid);
-
 // frees the entire pcb
 void pcbFree(pcb_t* pcb, queue_t* free_frame_queue);
 

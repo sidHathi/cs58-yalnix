@@ -197,39 +197,3 @@ pcbExit(pcb_t* pcb, queue_t* free_frame_queue)
     pcb->kernel_stack_pages = NULL;
   }
 }
-
-
-// helper function for pcb list management:
-// removes the pcb with pid `pid` from the `list`
-// of pcb_t pointers
-void
-pcbListRemove(linked_list_t* list, int pid) {
-  if (list == NULL) {
-    return;
-  }
-  lnode_t* curr = list->front;
-  while (curr != NULL) {
-    lnode_t* next = curr->next;
-    if (((pcb_t*) (curr->data))->pid == pid) {
-      if (curr->prev != NULL) {
-        curr->prev->next = curr->next;
-        if (curr->next != NULL) {
-          curr->next->prev = curr->prev;
-        } else {
-          list->rear = curr->prev;
-        }
-      } else {
-        list->front = curr->next;
-        if (list->front != NULL) {
-          list->front->prev = NULL;
-        } else {
-          list->rear = NULL;
-        }
-      }
-      // pcbFree((pcb_t*)curr->data, free_frame_queue);
-      free(curr);
-      break;
-    }
-    curr = next;
-  }
-}

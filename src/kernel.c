@@ -575,7 +575,7 @@ enqueue_current_process()
 }
 
 void
-ScheduleNextProcess(UserContext* user_context)
+ScheduleNextProcess()
 {
   // if there are no processes on the ready queue -> return
   // otherwise, pop a pcb from the ready queue
@@ -605,8 +605,6 @@ ScheduleNextProcess(UserContext* user_context)
     KernelContextSwitch(&KCSwitch, current_process, next_process);
   }
   
-  TracePrintf(1, "Scheduler: Copying user context\n");
-  memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
   TracePrintf(1, "Leaving scheduler \n");
 }
 

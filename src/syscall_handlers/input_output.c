@@ -15,7 +15,7 @@ get_raw_page_no(void* addr)
   return page_no;
 }
 
-int TtyReadHandler(int tty_id, void* buf, int len, UserContext* usr_ctx) {
+int TtyReadHandler(int tty_id, void* buf, int len) {
   // read input from terminal, set it to buf
   // can only set the max number of bytes <= len from tty_id
   // if there is enough bytes readily availible, set and return
@@ -41,7 +41,7 @@ int TtyReadHandler(int tty_id, void* buf, int len, UserContext* usr_ctx) {
   // perform safety checks:
   // buf needs to be valid region 1 memory
   // tty id needs to be valid
-  if (!check_memory_validity(buf) || get_raw_page_no < 128 || get_raw_page_no > 255) {
+  if (!check_memory_validity(buf) || get_raw_page_no(buf) < 128 || get_raw_page_no(buf) > 255) {
     TracePrintf(1, "Buffer passed into TtyReadHandler is invalid or lives in region 0");
     return ERROR;
   }
@@ -62,9 +62,9 @@ int TtyReadHandler(int tty_id, void* buf, int len, UserContext* usr_ctx) {
   current_process->state = BLOCKED;
   current_process->tty_num_bytes_requested = len;
   current_process->tty_read_buffer_r1 = buf;
-  linked_list_push(current_tty_state->curr_readers[tty_id], current_process);
+  set_insert(current_tty_state->curr_readers[tty_id], current_process->pid, current_process);
 
-  ScheduleNextProcess(usr_ctx);
+  ScheduleNextProcess();
   // at this point we expect the bytes to have been copied into the pcb r0 buffer
   // only thing left to do is move r0 buffer to r1 and return 
   if (!check_memory_validity(current_process->tty_read_buffer_r0) || current_process->tty_read_buffer_r0 == NULL) {
@@ -75,7 +75,7 @@ int TtyReadHandler(int tty_id, void* buf, int len, UserContext* usr_ctx) {
   return 0;
 }
 
-int TtyWriteHandler(int tty_id, void* buf, int len, UserContext* usr_ctx) {
+int TtyWriteHandler(int tty_id, void* buf, int len) {
   // len is the length of the buffer
   // process blocked until all bytes are writted to tty_id
 
@@ -108,7 +108,7 @@ int TtyWriteHandler(int tty_id, void* buf, int len, UserContext* usr_ctx) {
     queuePush(current_tty_state->write_queues[tty_id], current_process);
   }
   while (!current_tty_state->availability[tty_id]) {
-    ScheduleNextProcess(usr_ctx);
+    ScheduleNextProcess();
   }
   // at this point the assumption is that the requested terminal is now available
   // copy the data in the buffer into a region 0 location (malloc, memcpy)
@@ -124,7 +124,7 @@ int TtyWriteHandler(int tty_id, void* buf, int len, UserContext* usr_ctx) {
     // block and invoke scheduler until write finishes
     current_process->state = BLOCKED;
     current_process->tty_write_waiting = 1;
-    ScheduleNextProcess(usr_ctx);
+    ScheduleNextProcess();
   }
   // this should return when the write operation is finished
   current_process->tty_write_waiting = 0;

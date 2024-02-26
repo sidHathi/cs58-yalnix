@@ -14,7 +14,7 @@
   * to the calling process as are available in the input line; On success, the number of bytes actually copied into the
   * calling process’s buffer is returned; in case of any error, the value ERROR is returned.
 */
-int TtyReadHandler(int tty_id, void* buf, int len, UserContext* usr_ctx);
+int TtyReadHandler(int tty_id, void* buf, int len);
 
 
 /*
@@ -26,4 +26,4 @@ int TtyReadHandler(int tty_id, void* buf, int len, UserContext* usr_ctx);
 * returned.
 * Calls to TtyWrite for more than TERMINAL MAX LINE bytes should be supported.
 */
-int TtyWriteHandler(int tty_id, void* buf, int len, UserContext* usr_ctx);
+int TtyWriteHandler(int tty_id, void* buf, int len);

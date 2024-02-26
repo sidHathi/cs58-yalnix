@@ -64,7 +64,7 @@ KernelContext* KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p
 KernelContext* KCCopy(KernelContext* kc_in, void* new_pcb_p, void* not_used);
 
 // Should be called at the end of every clock trap. Initializes a context switch.
-void ScheduleNextProcess(UserContext* usr_ctx);
+void ScheduleNextProcess();
 
 // Load a new program into an existing address space
 int LoadProgram(char *name, char *args[], pcb_t* proc);
