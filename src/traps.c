@@ -107,7 +107,7 @@ void TrapKernelHandler(UserContext* user_context) {
     current_process->usr_ctx->regs[0] = rc;
     memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
   } else {
-    ScheduleNextProcess(user_context);
+    ScheduleNextProcess();
   }
 }
 
