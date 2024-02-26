@@ -118,23 +118,23 @@ void TrapClockHandler(UserContext* user_context) {
 
   // Decrement delay count for all delayed processes. If any get to 0,  move them to the ready queue
   set_node_t* node = delayed_pcbs->head;
+  int pid;
+  pcb_t* pcb;
+  int i = 1;
   while (node != NULL) {
-    pcb_t* pcb = set_pop(delayed_pcbs, ((pcb_t*)delayed_pcbs->head)->pid);
+    pcb = (pcb_t*) (node->item);
+    pid = pcb->pid;
     pcb->delay_ticks--;
+    node = node->next;
     if (pcb->delay_ticks > 0) {
-      TracePrintf(1, "Still delayed\n");
-      set_insert(delayed_pcbs, pcb->pid, pcb);
     }
     else {
-      TracePrintf(1, "Ready now\n");
+      set_pop(delayed_pcbs, pid);
       pcb->state = READY;
       queuePush(process_ready_queue, pcb);
     }
-    node = node->next;
   }
 
-
-  TracePrintf(1, "B\n");
   // Invoke Scheduler
   ScheduleNextProcess(user_context);
 }
