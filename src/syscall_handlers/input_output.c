@@ -16,18 +16,8 @@ get_raw_page_no(void* addr)
 }
 
 int TtyReadHandler(int tty_id, void* buf, int len) {
-  // read input from terminal, set it to buf
-  // can only set the max number of bytes <= len from tty_id
-  // if there is enough bytes readily availible, set and return
-  // else wait until there is a line of input ready to be returned
-  //    when there is:
-  //      if tty_id > len, then we save the first len bytes, and save remaining bytes to kernel for next read
-  //      this should probably be called by this process if this is the case, but not necessary
-  //      returns the number of bytes actually copied into the buffer
-  //  on any error, return ERROR
-
   /*
-    - read next line from specified terminal, up some maximum `len` byte
+    - read next line from specified terminal, up some maximum `len` bytes
     - if the line is already present, this might return immediately with the bytes
     - if not, it will block until the bytes are present
     - if more bytes are present than `len` , remaining bytes stay in terminal buffer for next read
@@ -41,7 +31,8 @@ int TtyReadHandler(int tty_id, void* buf, int len) {
   // perform safety checks:
   // buf needs to be valid region 1 memory
   // tty id needs to be valid
-  if (!check_memory_validity(buf) || get_raw_page_no(buf) < 128 || get_raw_page_no(buf) > 255) {
+  TracePrintf(1, "Checking buffer validity\n");
+  if (buf == NULL || !check_memory_validity(buf) || get_raw_page_no(buf) < 128 || get_raw_page_no(buf) > 255 || current_tty_state == NULL) {
     TracePrintf(1, "Buffer passed into TtyReadHandler is invalid or lives in region 0");
     return ERROR;
   }
@@ -51,13 +42,16 @@ int TtyReadHandler(int tty_id, void* buf, int len) {
     return ERROR;
   }
 
+  TracePrintf(1, "Checking TtyRead buffer availability\n");
   // check to see if bytes are immediately available to read?
   if (current_tty_state->bytes_available[tty_id] > 0) {
     // in this case, immediately consume the available bytes and return
+    TracePrintf(1, "Invoking tty buffer consume\n");
     tty_buffer_consume(current_tty_state, buf, tty_id, len);
     return 0;
   }
 
+  TracePrintf(1, "Blocking process in TtyRead\n");
   // otherwise, this process is blocked and waiting -> should invoke scheduler after blocking imo
   current_process->state = BLOCKED;
   current_process->tty_num_bytes_requested = len;

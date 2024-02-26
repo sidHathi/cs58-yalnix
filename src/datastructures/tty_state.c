@@ -32,11 +32,11 @@ tty_handle_received(tty_state_t* tty_state, int tty_id, int num_bytes)
     return;
   }
 
+  tty_state->bytes_available[tty_id] = num_bytes;
   if (tty_state->curr_readers[tty_id]->head == NULL) {
     // nobody is waiting to read the received bytes
     // set the bytes_available integer for tty_id to the number of bytes
     // that were just received
-    tty_state->bytes_available[tty_id] = num_bytes;
     return;
   }
 
@@ -97,16 +97,20 @@ tty_buffer_consume(tty_state_t* tty_state, void* receipt_buffer, int tty_id, int
   if (tty_state->bytes_available[tty_id] < 1) {
     return;
   }
+  TracePrintf(1, "Consuming %d buffered bytes\n", num_bytes);
 
   // if the receipt buffer isn't null, copy the requested bytes into the buffer
   int num_bytes_to_copy = MIN(num_bytes, tty_state->bytes_available[tty_id]);
   if (receipt_buffer != NULL) {
+    TracePrintf(1, "Copying remaining bytes into buffer\n", num_bytes);
+    memset(receipt_buffer, 0, num_bytes);
     memcpy(receipt_buffer, tty_state->buffers[tty_id], num_bytes_to_copy);
   }
   
   // if all the bytes from the buffer were copied, set it to zero, and set bytes available to zero
   if (num_bytes_to_copy >= tty_state->bytes_available[tty_id]) {
-    tty_state->bytes_available = 0;
+    TracePrintf(1, "Reseting tty buffer\n", num_bytes);
+    tty_state->bytes_available[tty_id] = 0;
     memset(tty_state->buffers[tty_id], 0, TERMINAL_MAX_LINE);
     return;
   }
@@ -115,6 +119,7 @@ tty_buffer_consume(tty_state_t* tty_state, void* receipt_buffer, int tty_id, int
   // variable, set the buffer for tty_id to zeros, copy the temp back into
   // the start of the buffer, and set the bytes available to the difference
   // betwen the current bytes available and the number of copied bytes
+  TracePrintf(1, "Left shifting buffer\n", num_bytes);
   int remaining_bytes = tty_state->bytes_available[tty_id] - num_bytes_to_copy;
   void* temp_byte_buffer = malloc(sizeof(char) * remaining_bytes);
   memcpy(temp_byte_buffer, tty_state->buffers[tty_id] + num_bytes_to_copy, remaining_bytes);

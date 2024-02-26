@@ -10,8 +10,8 @@ main(int argc, char** argv)
   TtyPrintf(0, "input: %s\n", input);
 
   TtyPrintf(0, "another line\n");
-  TtyRead(0, input, MAX_INPUT);
-  TtyRead(0, input, MAX_INPUT);
+  TtyRead(0, input, 3);
+  TtyRead(0, input, 6);
   TtyPrintf(0, "input: %s\n", input);
 
   TtyPrintf(2, "Let's put something on terminal two\n");

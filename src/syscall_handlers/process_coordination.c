@@ -446,7 +446,7 @@ int DelayHandler(int clock_ticks) {
     TracePrintf(1, "In delay handler: pid of current_proccess = %d\n", current_process->pid);
     current_process->delay_ticks = clock_ticks;
     current_process->state = DELAYED;
-    ScheduleNextProcess(current_process->usr_ctx);
+    ScheduleNextProcess();
     return 0;
   }
   return ERROR;
