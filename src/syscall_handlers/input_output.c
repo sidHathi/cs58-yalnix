@@ -122,14 +122,15 @@ int TtyWriteHandler(int tty_id, void* buf, int len) {
   // now we have to invoke tty transmit in blocks
   // we can only transmit TERMINAL_MAX_LINE bytes at a time
   // so if len is greater than that value it needs to be broken up
-  for (int start_byte = 0; start_byte <= (len-1)/TERMINAL_MAX_LINE; start_byte += TERMINAL_MAX_LINE) {
-    int transmit_size = MIN(len, TERMINAL_MAX_LINE);
+  for (int start_byte = 0; start_byte < len; start_byte += TERMINAL_MAX_LINE) {
+    int transmit_size = MIN(len - start_byte, TERMINAL_MAX_LINE);
     TracePrintf(1, "Tty write handler invoking TtyTransmit\n");
     TtyTransmit(tty_id, (void*) (r0_write_buffer + start_byte), transmit_size);
     // block and invoke scheduler until write finishes
     current_process->state = BLOCKED;
     current_process->tty_write_waiting = 1;
     ScheduleNextProcess();
+    TracePrintf(1, "Tty write handler unblocked in iteration %d. max iteration is %d\n", start_byte, (len-1)/TERMINAL_MAX_LINE);
   }
   // this should return when the write operation is finished
   current_process->tty_write_waiting = 0;
