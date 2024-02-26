@@ -1,5 +1,5 @@
-#include "../../../yalnix_framework/include/yalnix.h"
-#include "../../../yalnix_framework/include/ykernel.h"
+#include <yalnix.h>
+#include <ykernel.h>
 
 /*
   * TtyRead:

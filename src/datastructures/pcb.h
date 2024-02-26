@@ -4,13 +4,14 @@
 #include <yalnix.h>
 #include <hardware.h>
 #include <ylib.h>
-#include "linked_list.h"
 #include "queue.h"
+#include "set.h"
 
 #define READY 0
 #define BLOCKED 1
 #define RUNNING 2
 #define DEAD 3
+#define DELAYED 4
 #define NUM_KSTACK_FRAMES KERNEL_STACK_MAXSIZE/PAGESIZE
 
 typedef struct pcb pcb_t;
@@ -24,8 +25,8 @@ typedef struct pcb {
 	int exit_status;
 	int child_exit_status;
 	pcb_t* parent;
-	linked_list_t* children;
-	linked_list_t* zombies;
+	set_t* children;
+	set_t* zombies;
 	pte_t* page_table;
 	UserContext* usr_ctx;
 	KernelContext* krn_ctx; // stored on process switch
