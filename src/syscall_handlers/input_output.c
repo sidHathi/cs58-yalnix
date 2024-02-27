@@ -65,6 +65,7 @@ int TtyReadHandler(int tty_id, void* buf, int len) {
     return ERROR;
   }
   memcpy(buf, current_process->tty_read_buffer_r0, current_process->tty_num_bytes_read);
+  set_pop(current_tty_state->curr_readers[tty_id], current_process->pid);
 
   return 0;
 }
@@ -113,6 +114,7 @@ int TtyWriteHandler(int tty_id, void* buf, int len) {
   memcpy(r0_write_buffer, buf, len);
   // mark the current process as the current writer for the buffer
   current_tty_state->curr_writers[tty_id] = current_process;
+  current_tty_state->availability[tty_id] = 0;
   // now we have to invoke tty transmit in blocks
   // we can only transmit TERMINAL_MAX_LINE bytes at a time
   // so if len is greater than that value it needs to be broken up
@@ -123,6 +125,7 @@ int TtyWriteHandler(int tty_id, void* buf, int len) {
     // block and invoke scheduler until write finishes
     current_process->state = BLOCKED;
     current_process->tty_write_waiting = 1;
+    // add current process to writing queue
     ScheduleNextProcess();
     TracePrintf(1, "Tty write handler unblocked in iteration %d. max iteration is %d\n", start_byte, (len-1)/TERMINAL_MAX_LINE);
   }
@@ -132,6 +135,15 @@ int TtyWriteHandler(int tty_id, void* buf, int len) {
   // at this point the terminal should also be marked as available
   current_tty_state->availability[tty_id] = 1;
   current_tty_state->curr_writers[tty_id] = NULL;
+
+  // the next process on the writing queue should be unblocked
+  pcb_t* next_writer = queuePop(current_tty_state->write_queues[tty_id]);
+  if (next_writer != NULL) {
+    next_writer->state = READY;
+    next_writer->tty_write_waiting = 0;
+    set_pop(blocked_pcbs, next_writer->pid);
+    queuePush(process_ready_queue, next_writer);
+  }
 
   // return success to user
   return 0;

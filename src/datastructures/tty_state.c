@@ -40,6 +40,7 @@ tty_handle_received(tty_state_t* tty_state, int tty_id, int num_bytes)
     return;
   }
 
+  TracePrintf(1, "tty_receive: sending bytes to current readers\n");
   // otherwise, iterate through the list of processes waiting to read:
   // copy the information currently in the buffer at index tty_id into the pcb
   // tty reading buffer
@@ -49,14 +50,20 @@ tty_handle_received(tty_state_t* tty_state, int tty_id, int num_bytes)
   set_node_t* curr = tty_state->curr_readers[tty_id]->head;
   while (curr != NULL) {
     if (curr->item == NULL) {
+      curr = curr->next;
       continue;
     }
 
     pcb_t* proc = (pcb_t*)curr->item;
+    if (proc->state == DEAD) {
+      curr = curr->next;
+      continue;
+    }
     if (proc->tty_read_buffer_r0 == NULL) {
       proc->tty_read_buffer_r0 = malloc(TERMINAL_MAX_LINE * sizeof(char));
     }
     
+    TracePrintf(1, "tty_receive: Copying data into proc buffer with pid %d\n", proc->pid);
     // copy bytes into the pcb
     int num_bytes_to_copy = MIN(proc->tty_num_bytes_requested, num_bytes);
     memset(proc->tty_read_buffer_r0, 0, TERMINAL_MAX_LINE);
@@ -64,15 +71,19 @@ tty_handle_received(tty_state_t* tty_state, int tty_id, int num_bytes)
     proc->tty_num_bytes_read = num_bytes_to_copy;
     max_read = MAX(max_read, num_bytes_to_copy);
 
+    TracePrintf(1, "tty_receive: unblocking proc with pid %d\n", proc->pid);
     // unblock the pcb
     proc->state = READY;
     proc->tty_has_bytes = 1;
+    TracePrintf(1, "tty_receive: popping pcb with pid %d from blocked processes \n", proc->pid);
     set_pop(blocked_pcbs, proc->pid);
+    TracePrintf(1, "tty_receive: adding proc to ready queue \n", proc->pid);
     queuePush(process_ready_queue, proc);
     
     curr = curr->next;
   }
 
+  TracePrintf(1, "tty_receive: All waiting processes have read bytes\n");
   // at this point all the processes have the information from the terminal input -> none are waiting
   tty_state->curr_readers[tty_id]->head = NULL;
   tty_state->curr_readers[tty_id]->node_count = 0;

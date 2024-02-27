@@ -136,8 +136,10 @@ void* set_pop(set_t* set, int key) {
         // Key found
         if (key == node->key) {
             // Grab item
+            // TracePrintf(1, "set pop: found node\n", key);
             void* item = node->item;
 
+            // TracePrintf(1, "set pop: deleting node\n", key);
             // Handle deletion
             if (prev == NULL) {
                 // removing only node
@@ -151,12 +153,13 @@ void* set_pop(set_t* set, int key) {
             }
             free(node);
             set->node_count--;
+            // TracePrintf(1, "set pop: returning node\n", key);
             return item;
         }
         prev = node;
     }
     // key not found, return NULL
-    TracePrintf(1, "Key %s not found in set\n", key);
+    TracePrintf(1, "Key %d not found in set\n", key);
     return NULL;
 }
 
