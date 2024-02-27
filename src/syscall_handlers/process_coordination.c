@@ -276,6 +276,7 @@ void ExitHandler(int status) {
     set_insert(dead_pcbs, current_process->pid, current_process);
   }
   pcbExit(current_process, free_frame_queue);
+  current_process = NULL;
   parent_pcb->child_exit_status = status;
   TracePrintf(1, "Leaving exit handler\n");
 }
