@@ -36,6 +36,9 @@ pte_t region_0_pages[NUM_PAGES];
 pte_t region_1_pages[NUM_PAGES];
 unsigned int virtual_mem_enabled = 0;
 unsigned long kernel_brk_offset = 0;
+set_t* pipes = NULL;
+int next_pipe_id = 1;
+
 
 // Old initializations
 // unsigned long kernel_brk_offset = 0;

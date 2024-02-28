@@ -1,6 +1,9 @@
 #include <yalnix.h>
 #include <ykernel.h>
 #include "ipc.h"
+#include "kernel.h"
+#include "util.h"
+#include "pipe.h"
 
 int PipeInitHandler(int* pipe_idp) {
 
@@ -9,6 +12,21 @@ int PipeInitHandler(int* pipe_idp) {
   // if invalid pointer, return ERROR
   // upon success, set pipe identifier to pipe_idp
   // return 0 on success
+  // check validity of pipe_idp pointer
+  if (!check_memory_validity(pipe_idp) || get_raw_page_no(pipe_idp) < 128) {
+    return ERROR;
+  }
+
+  if (pipes == NULL) {
+    pipes = set_new();
+  }
+  int pipe_id = next_pipe_id;
+  next_pipe_id ++;
+
+  pipe_t* new_pipe = pipe_new(pipe_id);
+  set_insert(pipes, pipe_id, new_pipe);
+  *pipe_idp = pipe_id;
+
   return 0;
 }
 
@@ -20,8 +38,12 @@ int PipeReadHandler(int pipe_id, void* buf, int len) {
   // else if pipe length <= len unread butes, give them all to the caller and return
   // else if pipe length > len unready butes, give the first len butes to caller and return. Retain the unread bytes in the pipe for later
   // else throw an ERROR and return.
+  pipe_t* pipe = set_find(pipes, pipe_id);
+  if (pipe == NULL) {
+    return ERROR;
+  }
 
-  return 0;
+  return pipe_read(pipe, buf, len);
 }
 
 int PipeWriteHandler(int pipe_id, void* buf, int len) {
@@ -30,5 +52,10 @@ int PipeWriteHandler(int pipe_id, void* buf, int len) {
   // going to want to use append here, as the pipe works in FIFO order
   // return 0 upon success immmediately
   // return ERROR if anything doesn't go correctly
-  return 0;
+  pipe_t* pipe = set_find(pipes, pipe_id);
+  if (pipe == NULL) {
+    return ERROR;
+  }
+
+  return pipe_write(pipe, buf, len);
 }
