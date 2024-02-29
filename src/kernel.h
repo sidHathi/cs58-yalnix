@@ -39,6 +39,16 @@ extern char* tty_buffers[NUM_TERMINALS];
 extern queue_t* free_frame_queue;
 
 
+// global defs for lock, cvar and pipe IDs
+extern int next_lock_id;
+extern int next_cvar_id;
+extern int next_pipe_id;
+
+//global defs for lock, cvar and pipe sets
+extern set_t* locks;
+extern set_t* cvars;
+extern set_t* pipes;
+
 // global definitions for region 1 and 0 page tables -> stored in kernel data
 extern pte_t region_0_pages[NUM_PAGES];
 extern pte_t region_1_pages[NUM_PAGES]; // this is only used by the idle process

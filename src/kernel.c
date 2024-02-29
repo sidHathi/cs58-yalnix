@@ -965,3 +965,33 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
 
   return SUCCESS;
 }
+
+// //function to find keep track of our free numbers that we are identifying locks, cvars, and pipes with.
+// int findFreeLCP(int type) {
+
+//   int free
+
+//   if (type == LOCK) {
+//     queueType = free_lock_queue;
+//   }
+//   else if(type == CVAR) {
+//     queueType = free_cvar_queue;
+//   }
+//   else if (type == PIPE) {
+//     queueType = free_pipe_queue;
+//   } else {
+//     TracePrintf(1, "Find Free LCP: Type provided is not a Lock, Cvar, or a Pipe\n");
+//   }
+
+//   qnode_t* node = queuePop(queueType);
+
+//   if (node == NULL) {
+//     TracePrintf(1, "Find Free LCP: Specified queue is empty! Throwing Error\n");
+//     return ERROR;
+//   } else {
+
+//     int free_id = node->key;
+//     free(node);
+//     return free_id;
+//   }
+// }
