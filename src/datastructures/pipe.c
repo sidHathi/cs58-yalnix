@@ -1,7 +1,7 @@
 #include "pipe.h"
 
 typedef struct {
-	int id;
+	int pipe_id;
 	void* buffer;
 	int num_bytes_available;
 	queue_t* readers;
@@ -17,10 +17,10 @@ pipe_new(int id)
   // return it
   pipe_t* pipe = malloc(sizeof(pipe_t));
 
-  pipe->id = id;
+  pipe->pipe_id = id;
   pipe->buffer = malloc(sizeof(char) * PIPE_BUFFER_LEN);
   pipe->num_bytes_available = 0;
-  pipe->readers = queueCreate();
+  pipe->readers = queue_new();
   pipe->writers = set_new();
   pipe->read_available = 1;
   pipe->write_available = 1;
@@ -70,11 +70,11 @@ pipe_write(pipe_t* pipe, void* data, int len)
   pipe->num_bytes_available += len;
 
   // unblock next process waiting to read
-  pcb_t* next_reader = queuePop(pipe->readers);
+  pcb_t* next_reader = queue_pop(pipe->readers);
   if (next_reader != NULL) {
     next_reader->state = READY;
     set_pop(blocked_pcbs, next_reader->pid);
-    queuePush(process_ready_queue, next_reader);
+    queue_push(process_ready_queue, next_reader);
   }
   return 0;
 }
@@ -103,11 +103,11 @@ pipe_read(pipe_t* pipe, void* read_buf, int len)
   leftshift_buffer(pipe->buffer, PIPE_BUFFER_LEN, num_bytes_to_copy);
 
   // if there are still bytes available, unblock next reader
-  pcb_t* next_reader = queuePop(pipe->readers);
+  pcb_t* next_reader = queue_pop(pipe->readers);
   if (next_reader != NULL) {
     next_reader->state = READY;
     set_pop(blocked_pcbs, next_reader->pid);
-    queuePush(process_ready_queue, next_reader);
+    queue_push(process_ready_queue, next_reader);
   }
 
   // unblock any waiting writers
@@ -116,7 +116,7 @@ pipe_read(pipe_t* pipe, void* read_buf, int len)
     if (pcb != NULL) {
       pcb->state = READY;
       set_pop(blocked_pcbs, pcb->pid);
-      queuePush(process_ready_queue, pcb->state);
+      queue_push(process_ready_queue, pcb->state);
     }
   }
 
@@ -128,7 +128,7 @@ pipe_free(pipe_t* pipe)
 {
   // free memory allocated for pipe
   free(pipe->buffer);
-  queueFree(pipe->readers, NULL);
+  queue_delete(pipe->readers, NULL);
   set_delete(pipe->writers, NULL);
   free(pipe);
 }

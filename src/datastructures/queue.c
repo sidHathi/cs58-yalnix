@@ -8,7 +8,7 @@
 
 // Create new queue
 queue_t*
-queueCreate()
+queue_new()
 {
 	queue_t* q = (queue_t*) malloc(sizeof(queue_t));
 	if (q == NULL) {
@@ -22,7 +22,7 @@ queueCreate()
 
 // Enqueue new node
 int
-queuePush(queue_t* q, void* data)
+queue_push(queue_t* q, void* data)
 {	
 	if (q == NULL || data == NULL) {
 		TracePrintf(1, "Queue Push: got null queue pointer or null data pointer\n");
@@ -58,7 +58,7 @@ queuePush(queue_t* q, void* data)
 
 // Dequeue front node
 void*
-queuePop(queue_t* q)
+queue_pop(queue_t* q)
 {
 	if (q == NULL) {
 		return NULL;
@@ -88,7 +88,7 @@ queuePop(queue_t* q)
 	return data;
 }
 
-int queueFree(queue_t* q, freeFunc* freeFunction) {
+int queue_delete(queue_t* q, freeFunc* freeFunction) {
   if (q == NULL || freeFunction == NULL) {
 		TracePrintf(1, "Queue Free: got null queue pointer or null free function pointer\n");
     return ERROR;

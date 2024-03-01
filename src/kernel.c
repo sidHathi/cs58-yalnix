@@ -87,7 +87,7 @@ shrink_heap_pages(int prev_top_page_idx, int new_top_page_idx)
     if (virtual_mem_enabled) {
       int* page_loc = malloc(sizeof(int));
       *page_loc = region_0_pages[i].pfn;
-      queuePush(free_frame_queue, page_loc);
+      queue_push(free_frame_queue, page_loc);
     }
   }
 }
@@ -112,7 +112,7 @@ expand_heap_pages(int prev_top_page_idx, int new_top_page_idx)
     int* frame_no_ptr;
     int frame_no;
     if (virtual_mem_enabled) {
-      frame_no_ptr = (int*)queuePop(free_frame_queue);
+      frame_no_ptr = (int*)queue_pop(free_frame_queue);
       frame_no = *frame_no_ptr;
       free(frame_no_ptr);
     } else {
@@ -278,7 +278,7 @@ init_free_frame_queue(unsigned int num_frames)
     if (frame_region == 0) {
       int* frame_no = malloc(sizeof(int));
       *frame_no = frame;
-      queuePush(free_frame_queue, frame_no);
+      queue_push(free_frame_queue, frame_no);
     }
   }
 }
@@ -326,7 +326,7 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
 
   // 3.5: Add every frame that isn't mapped in the region 0 page table
   // to the free frames queue
-  free_frame_queue = queueCreate();
+  free_frame_queue = queue_new();
   TracePrintf(1, "allocating queue for %d frames\n", pmem_size/PAGESIZE);
   init_free_frame_queue(pmem_size/PAGESIZE);
   
@@ -335,7 +335,7 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   WriteRegister(REG_VM_ENABLE, 1);
 
   // 5. Allocate ready, blocked, and dead sets using set_new functions
-  process_ready_queue = queueCreate();
+  process_ready_queue = queue_new();
   blocked_pcbs = set_new();
   dead_pcbs = set_new();
   current_process = NULL;
@@ -352,7 +352,7 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   delayed_pcbs = set_new();
 
   // Set up the idle pcb
-  int* idle_sf1_pointer = (int*)queuePop(free_frame_queue); // should switch this to a bit vector soon
+  int* idle_sf1_pointer = (int*)queue_pop(free_frame_queue); // should switch this to a bit vector soon
   // for now -> check to make sure that the free frame queue returned something
   if (idle_sf1_pointer == NULL) {
     TracePrintf(1, "empty free frame queue\n");
@@ -380,8 +380,8 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   helper_check_heap("358");
   // set up idle kernel stack frames
 
-  int* kernel_stack_1_p = (int*)queuePop(free_frame_queue);
-  int* kernel_stack_2_p = (int*)queuePop(free_frame_queue);
+  int* kernel_stack_1_p = (int*)queue_pop(free_frame_queue);
+  int* kernel_stack_2_p = (int*)queue_pop(free_frame_queue);
   if (kernel_stack_1_p == NULL || kernel_stack_2_p == NULL) {
     TracePrintf(1, "No available frames for kernel stack\n");
   }
@@ -558,7 +558,7 @@ enqueue_current_process()
   switch (current_process->state) {
     case READY:
       TracePrintf(1, "adding process with pid %d to ready queue\n", current_process->pid);
-      queuePush(process_ready_queue, current_process);
+      queue_push(process_ready_queue, current_process);
       break;
     case DEAD:
       TracePrintf(1, "adding process with pid %d to dead list\n", current_process->pid);
@@ -590,7 +590,7 @@ ScheduleNextProcess()
   TracePrintf(1, "Entering scheduler \n");
 
   // Pop next process off ready queue
-  pcb_t* next_process = (pcb_t*) queuePop(process_ready_queue);
+  pcb_t* next_process = (pcb_t*) queue_pop(process_ready_queue);
 
   // Handle empty ready queue
   if (next_process == NULL) {
@@ -640,7 +640,7 @@ free_page_frame(int region, int page_no)
   page_table_addr[page_no].prot = 0;
   int* stored_frame_no = (int*)malloc(sizeof(int));
   *stored_frame_no = frame_no;
-  queuePush(free_frame_queue, stored_frame_no);
+  queue_push(free_frame_queue, stored_frame_no);
 }
 
 int
@@ -794,9 +794,9 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
       region = 4; // region 4 -> program stack
     }
 
-    int* ff1_p = (int*)queuePop(free_frame_queue);
-    int* ff2_p = (int*)queuePop(free_frame_queue);
-    int* ff3_p = (int*)queuePop(free_frame_queue);
+    int* ff1_p = (int*)queue_pop(free_frame_queue);
+    int* ff2_p = (int*)queue_pop(free_frame_queue);
+    int* ff3_p = (int*)queue_pop(free_frame_queue);
     if (ff1_p == NULL || ff2_p == NULL || ff3_p == NULL) {
       TracePrintf(1, "No free frames found\n");
       return ERROR;

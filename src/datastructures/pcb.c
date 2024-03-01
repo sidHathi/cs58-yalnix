@@ -93,7 +93,7 @@ pcbFree(pcb_t* pcb, queue_t* free_frame_queue)
           int* pfn_holder = (int*) malloc(sizeof(int));
           *pfn_holder = page_entry.pfn;
           TracePrintf(1, "Pcb free releasing free frame\n");
-          queuePush(free_frame_queue, pfn_holder);
+          queue_push(free_frame_queue, pfn_holder);
         }
       }
     }
@@ -128,7 +128,7 @@ pcbFree(pcb_t* pcb, queue_t* free_frame_queue)
         {
           int *pfn_holder = (int *)malloc(sizeof(int));
           *pfn_holder = page_entry.pfn;
-          queuePush(free_frame_queue, pfn_holder);
+          queue_push(free_frame_queue, pfn_holder);
         }
       }
     }
@@ -152,7 +152,7 @@ pcbExit(pcb_t* pcb, queue_t* free_frame_queue)
         if (page_entry.valid) {
           int* pfn_holder = (int*) malloc(sizeof(int));
           *pfn_holder = page_entry.pfn;
-          queuePush(free_frame_queue, pfn_holder);
+          queue_push(free_frame_queue, pfn_holder);
         }
       }
     }
@@ -188,7 +188,7 @@ pcbExit(pcb_t* pcb, queue_t* free_frame_queue)
         {
           int *pfn_holder = (int *)malloc(sizeof(int));
           *pfn_holder = page_entry.pfn;
-          queuePush(free_frame_queue, pfn_holder);
+          queue_push(free_frame_queue, pfn_holder);
         }
       }
     }

@@ -19,7 +19,7 @@ tty_state_init()
     tty_state->curr_readers[i] = set_new();
     tty_state->buffers[i] = malloc(sizeof(char) * TERMINAL_MAX_LINE);
     tty_state->bytes_available[i] = 0;
-    tty_state->write_queues[i] = queueCreate();
+    tty_state->write_queues[i] = queue_new();
   }
 
   return tty_state;
@@ -78,7 +78,7 @@ tty_handle_received(tty_state_t* tty_state, int tty_id, int num_bytes)
     TracePrintf(1, "tty_receive: popping pcb with pid %d from blocked processes \n", proc->pid);
     set_pop(blocked_pcbs, proc->pid);
     TracePrintf(1, "tty_receive: adding proc to ready queue \n", proc->pid);
-    queuePush(process_ready_queue, proc);
+    queue_push(process_ready_queue, proc);
     
     curr = curr->next;
   }

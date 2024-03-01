@@ -89,7 +89,7 @@ int ForkHandler() {
     }
 
     // TracePrintf(1, "Fork Handler: copying page %d\n", i);
-    int* allocated_frame_region1 = (int*) queuePop(free_frame_queue);
+    int* allocated_frame_region1 = (int*) queue_pop(free_frame_queue);
     if (allocated_frame_region1 == NULL) {
       TracePrintf(1, "Fork Handler: No more free frames availible\n");
       return ERROR;
@@ -137,8 +137,8 @@ int ForkHandler() {
   pcb_t* new_pcb = pcbNew(new_pid, new_page_table, NULL, current_process, current_process->usr_ctx, NULL);
   new_pcb->current_brk = current_process->current_brk;
 
-  int* kernel_stack_1_p = (int*)queuePop(free_frame_queue);
-  int* kernel_stack_2_p = (int*)queuePop(free_frame_queue);
+  int* kernel_stack_1_p = (int*)queue_pop(free_frame_queue);
+  int* kernel_stack_2_p = (int*)queue_pop(free_frame_queue);
   if (kernel_stack_1_p == NULL || kernel_stack_2_p == NULL) {
     TracePrintf(1, "No available frames for kernel stack\n");
     return ERROR;
@@ -165,7 +165,7 @@ int ForkHandler() {
 
   // add the process to the ready queue
   TracePrintf(1, "Fork Handler: adding new pcb to ready queue\n");
-  queuePush(process_ready_queue, new_pcb);
+  queue_push(process_ready_queue, new_pcb);
   // Use `KCCopy` to copy the kernel context into the new pcb and populate the kernel stack frames with data
   TracePrintf(1, "Fork Handler: executing kccopy\n");
   KernelContextSwitch(&KCCopy, new_pcb, NULL);
@@ -257,7 +257,7 @@ void ExitHandler(int status) {
   if (parent_pcb->waiting) {
     TracePrintf(1, "Exit handler: parent process waiting -> unblocking\n");
     parent_pcb->state = READY;
-    queuePush(process_ready_queue, parent_pcb);
+    queue_push(process_ready_queue, parent_pcb);
 
     // remove parent from blocked process list
     set_pop(blocked_pcbs, parent_pcb->pid);
@@ -381,7 +381,7 @@ int BrkHandler(void* addr) {
     for(int pt_index = first_invalid_page_index; pt_index <= addr_page_index; pt_index++) {	
 	    
 	    if(current_process->page_table[pt_index].valid == 0) {		    
-		    int* allocated_frame = (int*) queuePop(free_frame_queue);
+		    int* allocated_frame = (int*) queue_pop(free_frame_queue);
 
 		    if(allocated_frame == NULL) {
           return ERROR;
@@ -408,7 +408,7 @@ int BrkHandler(void* addr) {
       if(current_process->page_table[pt_index].valid = 1) {
         region_0_pages[pt_index].valid = 0;
         unsigned int curr_frame_number = region_0_pages[pt_index].pfn;
-        queuePush(free_frame_queue, &curr_frame_number);
+        queue_push(free_frame_queue, &curr_frame_number);
         WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
       }
       else {

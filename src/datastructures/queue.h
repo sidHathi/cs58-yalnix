@@ -27,15 +27,15 @@ typedef void (*freeFunc)(void*);
 
 // A utility function to create an empty queue
 // Caller is responsible freeing queue memory later.
-queue_t* queueCreate();
+queue_t* queue_new();
 
 // Push to back of queue. Returns 0 on success. Returns ERROR on fail.
-int queuePush(queue_t* q, void* data);
+int queue_push(queue_t* q, void* data);
 
 // Pop from front of queue. Caller is responsible for freeing the void* pointer.
-void* queuePop(queue_t* q);
+void* queue_pop(queue_t* q);
 
 // Delete a queue. Calls freeFunc on data of each node
-int queueFree(queue_t* q, freeFunc* freeFunction);
+int queue_delete(queue_t* q, freeFunc* freeFunction);
 
 #endif /*!_queue_h*/

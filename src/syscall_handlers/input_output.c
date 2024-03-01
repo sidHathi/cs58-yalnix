@@ -90,7 +90,7 @@ int TtyWriteHandler(int tty_id, void* buf, int len) {
   if (!current_tty_state->availability[tty_id]) {
     current_process->state = BLOCKED;
     current_process->tty_write_waiting = 1;
-    queuePush(current_tty_state->write_queues[tty_id], current_process);
+    queue_push(current_tty_state->write_queues[tty_id], current_process);
   }
   while (!current_tty_state->availability[tty_id]) {
     ScheduleNextProcess();
@@ -125,12 +125,12 @@ int TtyWriteHandler(int tty_id, void* buf, int len) {
   current_tty_state->curr_writers[tty_id] = NULL;
 
   // the next process on the writing queue should be unblocked
-  pcb_t* next_writer = queuePop(current_tty_state->write_queues[tty_id]);
+  pcb_t* next_writer = queue_pop(current_tty_state->write_queues[tty_id]);
   if (next_writer != NULL) {
     next_writer->state = READY;
     next_writer->tty_write_waiting = 0;
     set_pop(blocked_pcbs, next_writer->pid);
-    queuePush(process_ready_queue, next_writer);
+    queue_push(process_ready_queue, next_writer);
   }
 
   // return success to user

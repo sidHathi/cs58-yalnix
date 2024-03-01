@@ -132,7 +132,7 @@ void TrapClockHandler(UserContext* user_context) {
     else {
       set_pop(delayed_pcbs, pid);
       pcb->state = READY;
-      queuePush(process_ready_queue, pcb);
+      queue_push(process_ready_queue, pcb);
     }
   }
 
@@ -256,7 +256,7 @@ void TrapTTYTransmitHandler(UserContext* user_context) {
     writing_pcb->state = READY;
     writing_pcb->tty_write_waiting = 0;
     set_pop(blocked_pcbs, writing_pcb->pid);
-    queuePush(process_ready_queue, writing_pcb);
+    queue_push(process_ready_queue, writing_pcb);
   }
 
   if (current_process != NULL) {

@@ -6,6 +6,10 @@
 #include <ylib.h>
 #include "set.h"
 #include "queue.h"
+#include "pcb.h"
+#include "../kernel.h"
+
+/*********** MACROS ***********/
 
 #define LOCK 0
 #define CVAR 1
@@ -23,25 +27,16 @@
 #define RELEASE_QUEUE_EMPTY 0
 #define RELEASE_NEW_OWNER 1
 
-//this is the data structer for all of the Inter Process Coordination handling
+/*********** STRUCTS ***********/
+
+// this is the data structer for all of the Inter Process Coordination handling
+// it should be malloc'd by KernelStart and Freed via ipc_wrapper_delete at the end of the kernel's lifecycle
 typedef struct ipc_wrapper {
   int next_ipc_id; // the next id for either a lock, cvar, or pipe
-
   set_t* locks; // set of all existing locks
   set_t* cvars; // set of all existing cvars
   set_t* pipes; // set of all existing pipes
-
 } ipc_wrapper_t;
-
-//helper functions for creating and deleting the ipc_wrapper
-ipc_wrapper_t* ipc_wrapper_init();
-void ipc_wrapper_delete(ipc_wrapper_t* ipc_wrapper);
-
-// PARAMS: takes in the current ipc wrapper, the types as defined above, and the id of either the lock, cvar, or pipe
-int ipc_reclaim(ipc_wrapper_t* ipc_wrapper, int ipc_type, int ipc_id);
-
-
-/*********** LOCK FUNCTIONALITY ***********/
 
 typedef struct lock {
   int lock_id; // unique identifier
@@ -49,9 +44,44 @@ typedef struct lock {
   queue_t* blocked; // FIFO queue of PCB's waiting for lock
 } lock_t;
 
+typedef struct cvar {
+  int cvar_id; // unique identifier
+  queue_t* blocked; // FIFO queue of PCB's waiting on cvar
+} cvar_t;
+
+typedef struct {
+	int pipe_id;
+	void* buffer;
+	int num_bytes_available;
+	queue_t* readers;
+	set_t* writers;
+	int read_available;
+	int write_available;
+} pipe_t;
+
+/*********** GENERAL FUNCTIONS ***********/
+
+// Allocate memory for and initialize an ipc_wrapper.
+// Caller is responsible for calling ipc_wrapper_delte on it
+ipc_wrapper_t* ipc_wrapper_init();
+
+// Free memory associated with ipc_wrapper
+void ipc_wrapper_delete(ipc_wrapper_t* ipc_wrapper);
+
+
+// PARAMS: takes in the current ipc wrapper, the types as defined above, and the id of either the lock, cvar, or pipe
+// Remove an existing IPC struct from
+// Parameters:
+//  - ipc_wrapper: existing ipc_wrapper
+//  - ipc_id: index of IPC
+int ipc_reclaim(ipc_wrapper_t* ipc_wrapper, int ipc_id);
+
+
+/*********** SPECIFIC LOCK FUNCTIONALITY ***********/
+
 // creates a new lock with no owner
 // return ID of the lock on success, ERROR on Failure
-int lock_init(ipc_wrapper_t* ipc_wrapper);
+int lock_new(ipc_wrapper_t* ipc_wrapper);
 
 // a function for a process to acquire a lock
 // if the lock is already owned, it will be added to the queue
@@ -64,17 +94,15 @@ int lock_acquire(ipc_wrapper_t* ipc_wrapper, int lock_id);
 // returns 0 on success, ERROR on failure
 int lock_release(ipc_wrapper_t* ipc_wrapper, int lock_id);
 
+// Free memory associated with specified lock
+void lock_delete(lock_t* lock);
+
 
 /*********** CVAR FUNCTIONALITY ***********/
 
-typedef struct cvar {
-  int cvar_id; // unique identifier
-  queue_t* blocked; // FIFO queue of PCB's waiting on cvar
-} cvar_t;
-
 // creates a new cvar with no owner
 // returns the ID of the cvar on success, ERROR on failure
-int cvar_init(ipc_wrapper_t* ipc_wrapper);
+int cvar_new(ipc_wrapper_t* ipc_wrapper);
 
 // function to signal the condition variable specified by cvar_id
 // return pid of the process to unblock on success, ERROR on failure
@@ -91,18 +119,28 @@ int* cvar_broadcast(ipc_wrapper_t* ipc_wrapper, int cvar_id);
 // returns ERROR on failure, returns return-value of release_lock on success
 int cvar_wait(ipc_wrapper_t* ipc_wrapper, int cvar_id, int lock_id);
 
+// Free memory associated with specified cvar
+void cvar_delete(cvar_t* cvar);
+
 
 /*********** PIPE FUNCTIONALITY ***********/
 
-typedef struct {
-	int id;
-	void* buffer;
-	int num_bytes_available;
-	queue_t* readers;
-	set_t* writers;
-	int read_available;
-	int write_available;
-} pipe_t;
+// creates a new pipe
+// returns the ID of the pipe on success, ERROR on failure
+int pipe_new(ipc_wrapper_t* ipc_wrapper);
+
+// Write [len] bytes starting at [buf] to the specified pipe.
+// return number of bytes written on success, ERROR on failure
+int pipe_write(ipc_wrapper_t* ipc_wrapper, int pipe_id, void* buf, int len);
+
+// Read [len] consecutive bytes from the specified pipe into [buf]
+// Return number of bytes read on success, ERROR on failure
+int pipe_read(ipc_wrapper_t* ipc_wrapper, int pipe_id, void* buf, int len);
+
+// Free memory associated with specified pipe
+void pipe_delete(pipe_t* pipe);
+
+
 
 
 
