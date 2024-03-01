@@ -1,6 +1,11 @@
 #include "ipc_wrapper.h"
 #include "../kernel.h"
 
+// Helper function to delete queue of PCB's. This can be passed an an argument to queue_delete
+void delete_pcb_queue_helper(void* data, void* arg) {
+  pcbFree((pcb_t*) data, (queue_t*) arg);
+}
+
 // IPC helper function to find the proper set (locks, cvar, or pipes)
 set_t* ipc_get_set(ipc_wrapper_t* ipc_wrapper, int ipc_type) {
   if (ipc_wrapper == NULL) {
@@ -91,19 +96,26 @@ int ipc_reclaim(ipc_wrapper_t* ipc_wrapper, int ipc_id) {
   if (lock != NULL) {
     TracePrintf(1, "IPC Reclaim: removing lock %d\n", lock->lock_id);
     lock_delete(lock);
-    return ERROR;
+    return 0;
   }
 
   cvar_t* cvar = (cvar_t*) set_pop(ipc_wrapper->cvars, ipc_id);
   if (cvar != NULL) {
     TracePrintf(1, "IPC Reclaim: removing cvar %d\n", cvar->cvar_id);
     cvar_delete(cvar);
-    return ERROR;
+    return 0;
   }
 
   // Handle if it's a pipe
+  pipe_t* pipe = (pipe_t*) set_pop(ipc_wrapper->pipes, ipc_id);
+  if (pipe != NULL) {
+    TracePrintf(1, "IPC Reclaim: removing pipe %d\n", pipe->pipe_id);
+    pipe_delete(pipe);
+    return 0;
+  }
 
   TracePrintf(1, "IPC Reclaim: couldn't find ipc struct with id %d\n", ipc_id);
+  return ERROR;
 }
 
 /******** LOCK FUNCTIONALITY ********/
@@ -242,7 +254,7 @@ void lock_delete(lock_t* lock) {
   }
 
   if (lock->blocked != NULL) {
-    queue_delete(lock->blocked, pcbFree);
+    queue_delete(lock->blocked, free_frame_queue, delete_pcb_queue_helper);
   }
 
   free(lock);
@@ -427,7 +439,7 @@ void cvar_delete(cvar_t* cvar) {
   }
 
   if (cvar->blocked != NULL) {
-    queue_delete(cvar->blocked, pcbFree);
+    queue_delete(cvar->blocked, free_frame_queue, delete_pcb_queue_helper);
   }
 
   free(cvar);
@@ -466,7 +478,7 @@ int pipe_new(ipc_wrapper_t* ipc_wrapper) {
   if (writers == NULL) {
     TracePrintf(1, "Pipe New: cannot allocate memory for writers set\n");
     free(pipe);
-    queue_delete(readers, NULL);
+    queue_delete(readers, NULL, NULL);
     return ERROR;
   }
 
@@ -475,7 +487,7 @@ int pipe_new(ipc_wrapper_t* ipc_wrapper) {
   if (pipe->buffer == NULL) {
     TracePrintf(1, "Pipe New: cannot allocate memory for pipe buffer\n");
     free(pipe);
-    queue_delete(readers, NULL);
+    queue_delete(readers, NULL, NULL);
     set_delete(writers, NULL);
     return ERROR;
   }
@@ -509,7 +521,6 @@ leftshift_buffer(void* buffer, int buffer_size, int dist)
   memset(buffer, 0, buffer_size);
   memcpy(buffer, tempbuffer, buffer_size - dist);
 }
-
 
 int pipe_write(ipc_wrapper_t* ipc_wrapper, int pipe_id, void* buf, int len) {
   if (ipc_wrapper == NULL) {
@@ -606,7 +617,7 @@ int pipe_read(ipc_wrapper_t* ipc_wrapper, int pipe_id, void* buf, int len) {
     if (pcb != NULL) {
       pcb->state = READY;
       set_pop(blocked_pcbs, pcb->pid);
-      queue_push(process_ready_queue, pcb->state);
+      queue_push(process_ready_queue, &(pcb->state));
     }
   }
 
@@ -615,7 +626,7 @@ int pipe_read(ipc_wrapper_t* ipc_wrapper, int pipe_id, void* buf, int len) {
 
 void pipe_delete(pipe_t* pipe) {
   free(pipe->buffer);
-  queue_delete(pipe->readers, NULL);
+  queue_delete(pipe->readers, NULL, NULL);
   set_delete(pipe->writers, NULL);
   free(pipe);
 }

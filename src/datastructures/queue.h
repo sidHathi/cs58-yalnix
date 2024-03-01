@@ -35,7 +35,7 @@ int queue_push(queue_t* q, void* data);
 // Pop from front of queue. Caller is responsible for freeing the void* pointer.
 void* queue_pop(queue_t* q);
 
-// Delete a queue. Calls freeFunc on data of each node
-int queue_delete(queue_t* q, freeFunc* freeFunction);
+// Delete a queue. Calls itemdelete on data in each node, passing void* arg each time
+int queue_delete(queue_t* q, void* arg, void (*itemdelete)(void* data, void* arg));
 
 #endif /*!_queue_h*/

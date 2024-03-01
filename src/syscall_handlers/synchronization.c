@@ -1,7 +1,9 @@
 #include <yalnix.h>
 #include <ykernel.h>
+#include "../datastructures/ipc_wrapper.h"
+#include "../kernel.h"
 
-int LockInitHandler(int* lock_ipd) {
+int LockInitHandler(int* lock_idp) {
   /* 
   * STRUCT Lock
   * int owner
@@ -13,6 +15,12 @@ int LockInitHandler(int* lock_ipd) {
   // store lock in lock_ipd
   // return upon success, toss error if ERROR such as lock_ipd not existing
 
+  *lock_idp = lock_new(ipc_wrapper);
+
+  if (*lock_idp == ERROR) {
+    return ERROR;
+  }
+
   return 0;
 }
 
@@ -22,7 +30,16 @@ int AcquireLockHandler(int lock_id) {
   // if there is, append user to the queue
   // if not, give the lock directly to the caller and change the owner var in the lock
   // return ERROR if problems arise while this is happening
-  return 0;
+
+  int return_value = lock_acquire(ipc_wrapper, lock_id);
+
+  if (return_value == ERROR || return_value == ACQUIRE_SUCCESS) {
+    return ERROR;
+  }
+  else if (return_value == ACQUIRE_BLOCKED) {
+    current_process->state = BLOCKED;
+    ScheduleNextProcess();
+  }
 }
 
 int ReleaseLockHandler(int lock_id) {
@@ -35,10 +52,10 @@ int ReleaseLockHandler(int lock_id) {
   // give the lock to the next owner
   // return ERROR if any of the above checks/attempts fail
 
-  return 0;
+  return lock_release(ipc_wrapper, lock_id);
 }
 
-int CvarInitHandler(int* cvar_ipd) {
+int CvarInitHandler(int* cvar_idp) {
   /* 
   * STRUCT cvar
   * int owner
@@ -52,9 +69,17 @@ int CvarInitHandler(int* cvar_ipd) {
   // set id to found id above
   // return if all of the above successful, throw ERROR upon failures
   return 0;
+
+  *cvar_idp = cvar_new(ipc_wrapper);
+
+  if (*cvar_idp == ERROR) {
+    return ERROR;
+  }
+
+  return 0;
 }
 
-int CvarSignalHandler(int cvar_ip) {
+int CvarSignalHandler(int cvar_id) {
   // locate cvar based on the cvar_ip
   // if its invalid, throw error
   // find current process
@@ -65,7 +90,20 @@ int CvarSignalHandler(int cvar_ip) {
   // if all sucessful return, if there were no processes waiting, do nothing
 
   // throw ERROR where necessary during checks
-  return 0;
+
+  int return_value = cvar_signal(ipc_wrapper, cvar_id);
+  
+  if (return_value == ERROR) {
+    return ERROR;
+  }
+
+  pcb_t* pcb = set_pop(delayed_pcbs, return_value);
+  if (pcb == NULL) {
+    TracePrintf(1, "Cvar Signal Handler: cannot find pid %d in delayed pcb set\n", return_value);
+    return ERROR;
+  }
+
+  return queue_push(process_ready_queue, pcb);
 }
 
 int CvarBroadcastHandler(int cvar_id) {
@@ -80,6 +118,31 @@ int CvarBroadcastHandler(int cvar_id) {
 
   // note this is pretty much the same as signal, except instead of removing one from the queue, we are dequeueing the entire queue.
   // this means there will need to be more code handling in the surrounding code on the wait.
+
+  int* return_value = (int*) cvar_broadcast(ipc_wrapper, cvar_id);
+
+  if (return_value == NULL) {
+    return ERROR;
+  }
+
+  int length = sizeof(return_value) / sizeof(return_value[0]);
+  int pid;
+  pcb_t* pcb;
+  for (int i = 0; i < length; i++) {
+    pid = return_value[i];
+    pcb = set_pop(delayed_pcbs, pid);
+    if (pcb == NULL) {
+      TracePrintf(1, "Cvar Broadcast Handler: cannot find pid %d in delayed pcb set\n", return_value);
+      free(return_value);
+      return ERROR;
+    }
+    if (queue_push(process_ready_queue, pcb) == ERROR) {
+      TracePrintf(1, "Cvar Broadcast Handler: failed pushing process %d onto ready queue\n", return_value);
+      free(return_value);
+      return ERROR;
+    }
+  }
+
   return 0;
 }
 
@@ -97,7 +160,8 @@ int CvarWaitHandler(int cvar_id, int lock_id) {
   // once the var is free aquire the lock and return
 
   // throw ERROR where necessary during the checks
-  return 0;
+
+  return cvar_wait(ipc_wrapper, cvar_id, lock_id);
 }
 
 int ReclaimHandler(int id) {
@@ -112,5 +176,5 @@ int ReclaimHandler(int id) {
   // throw ERROR on checks where necesarry
   // the above pseudo code is for one, this would in theory would need to be repeated and changed slightly for each cvar/pipe/lock
 
-  return 0;
+  return ipc_reclaim(ipc_wrapper, id);
 }

@@ -75,6 +75,13 @@ KernelContext* KCSwitch(KernelContext* kc_in, void* curr_pcb_p, void* next_pcb_p
 KernelContext* KCCopy(KernelContext* kc_in, void* new_pcb_p, void* not_used);
 
 // Should be called at the end of every clock trap. Initializes a context switch.
+// Responsibilities
+//  - if process_ready_queue is empty, no nothing
+//  - move current_process to appropriate queue/set
+//  - perform kernel context switch
+//  - swap region 1 page table in register
+//  - pointing current_process to the next process
+// Caller is responsible for copying current_process->usr_ctx into actual user context
 void ScheduleNextProcess();
 
 // Load a new program into an existing address space

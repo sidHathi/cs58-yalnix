@@ -10,6 +10,7 @@
 #include "pipe.h"
 #include "cvar.h"
 #include "lock.h"
+#include "../util.h"
 
 /*********** MACROS ***********/
 

@@ -88,9 +88,9 @@ queue_pop(queue_t* q)
 	return data;
 }
 
-int queue_delete(queue_t* q, freeFunc* freeFunction) {
-  if (q == NULL || freeFunction == NULL) {
-		TracePrintf(1, "Queue Free: got null queue pointer or null free function pointer\n");
+int queue_delete(queue_t* q, void* arg, void (*itemdelete)(void* data, void* arg)) {
+  if (q == NULL) {
+		TracePrintf(1, "Queue Free: got null queue pointerfree function pointer\n");
     return ERROR;
   };
 
@@ -99,8 +99,8 @@ int queue_delete(queue_t* q, freeFunc* freeFunction) {
   while (curr_node != NULL) {
 		qnode_t* next_node = curr_node->next;
 
-		if(freeFunction != NULL) {
-    	(*freeFunction)(curr_node->data);
+		if(itemdelete != NULL) {
+    	itemdelete(curr_node->data, arg);
 		}
     free(curr_node);
     curr_node = next_node;
