@@ -1,5 +1,5 @@
-#ifndef _ipc_structs_h
-#define _ipc_structs_h
+#ifndef _ipc_wrapper_h
+#define _ipc_wrapper_h
 
 #include <yalnix.h>
 #include <hardware.h>
@@ -7,7 +7,9 @@
 #include "set.h"
 #include "queue.h"
 #include "pcb.h"
-#include "../kernel.h"
+#include "pipe.h"
+#include "cvar.h"
+#include "lock.h"
 
 /*********** MACROS ***********/
 
@@ -37,27 +39,6 @@ typedef struct ipc_wrapper {
   set_t* cvars; // set of all existing cvars
   set_t* pipes; // set of all existing pipes
 } ipc_wrapper_t;
-
-typedef struct lock {
-  int lock_id; // unique identifier
-  int owner; // pid of process controlling lock, -1 if unlocked
-  queue_t* blocked; // FIFO queue of PCB's waiting for lock
-} lock_t;
-
-typedef struct cvar {
-  int cvar_id; // unique identifier
-  queue_t* blocked; // FIFO queue of PCB's waiting on cvar
-} cvar_t;
-
-typedef struct {
-	int pipe_id;
-	void* buffer;
-	int num_bytes_available;
-	queue_t* readers;
-	set_t* writers;
-	int read_available;
-	int write_available;
-} pipe_t;
 
 /*********** GENERAL FUNCTIONS ***********/
 
@@ -140,8 +121,4 @@ int pipe_read(ipc_wrapper_t* ipc_wrapper, int pipe_id, void* buf, int len);
 // Free memory associated with specified pipe
 void pipe_delete(pipe_t* pipe);
 
-
-
-
-
-#endif /*!_ipc_structs_h*/
+#endif

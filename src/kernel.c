@@ -36,8 +36,7 @@ pte_t region_0_pages[NUM_PAGES];
 pte_t region_1_pages[NUM_PAGES];
 unsigned int virtual_mem_enabled = 0;
 unsigned long kernel_brk_offset = 0;
-set_t* pipes = NULL;
-int next_pipe_id = 1;
+ipc_wrapper_t* ipc_wrapper = NULL;
 
 
 // Old initializations
@@ -395,6 +394,9 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   free(kernel_stack_1_p);
   free(kernel_stack_2_p);
 
+  // Set up data structure for IPC
+  ipc_wrapper = ipc_wrapper_init();
+
   // parse command args to get the location of the init code -> if none provided then use default init.c
   int num_args = count_cmd_args(cmd_args);
   TracePrintf(1, "%d command args parsed in KernelStart\n", num_args);
@@ -411,7 +413,7 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   for (int i = 0; i < NUM_PAGES; i ++) {
     init_pages[i].valid = 0; // before LoadProgram, they're all invalid
   }
-  helper_check_heap("389");
+  
 
   // get pid for new proccess
   int init_pid = helper_new_pid(init_pages);
@@ -965,33 +967,3 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
 
   return SUCCESS;
 }
-
-// //function to find keep track of our free numbers that we are identifying locks, cvars, and pipes with.
-// int findFreeLCP(int type) {
-
-//   int free
-
-//   if (type == LOCK) {
-//     queueType = free_lock_queue;
-//   }
-//   else if(type == CVAR) {
-//     queueType = free_cvar_queue;
-//   }
-//   else if (type == PIPE) {
-//     queueType = free_pipe_queue;
-//   } else {
-//     TracePrintf(1, "Find Free LCP: Type provided is not a Lock, Cvar, or a Pipe\n");
-//   }
-
-//   qnode_t* node = queuePop(queueType);
-
-//   if (node == NULL) {
-//     TracePrintf(1, "Find Free LCP: Specified queue is empty! Throwing Error\n");
-//     return ERROR;
-//   } else {
-
-//     int free_id = node->key;
-//     free(node);
-//     return free_id;
-//   }
-// }

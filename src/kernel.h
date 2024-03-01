@@ -7,6 +7,7 @@
 #include "datastructures/pcb.h"
 #include "datastructures/tty_state.h"
 #include "datastructures/set.h"
+#include "datastructures/ipc_wrapper.h"
 
 
 /**** MACROS ****/
@@ -59,11 +60,8 @@ extern unsigned int virtual_mem_enabled;
 // number of bits that kernel break has been moved upwards from origin
 extern unsigned long kernel_brk_offset;
 
-// set of pipes used by OS
-extern set_t* pipes;
-// id of next pipe
-extern int next_pipe_id;
-
+// Data structure to track IPC
+extern ipc_wrapper_t* ipc_wrapper;
 
 /**** IMPORTANT FUNCTIONS ****/
 

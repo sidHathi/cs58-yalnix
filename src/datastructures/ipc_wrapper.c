@@ -1,4 +1,5 @@
-#include "ipc_structs.h"
+#include "ipc_wrapper.h"
+#include "../kernel.h"
 
 // IPC helper function to find the proper set (locks, cvar, or pipes)
 set_t* ipc_get_set(ipc_wrapper_t* ipc_wrapper, int ipc_type) {
@@ -14,7 +15,7 @@ set_t* ipc_get_set(ipc_wrapper_t* ipc_wrapper, int ipc_type) {
     return ipc_wrapper->cvars;
   }
 
-  else if (ipc_wrapper == PIPE) {
+  else if (ipc_type == PIPE) {
     return ipc_wrapper->pipes;
   }
 
@@ -90,14 +91,14 @@ int ipc_reclaim(ipc_wrapper_t* ipc_wrapper, int ipc_id) {
   if (lock != NULL) {
     TracePrintf(1, "IPC Reclaim: removing lock %d\n", lock->lock_id);
     lock_delete(lock);
-    return;
+    return ERROR;
   }
 
   cvar_t* cvar = (cvar_t*) set_pop(ipc_wrapper->cvars, ipc_id);
   if (cvar != NULL) {
     TracePrintf(1, "IPC Reclaim: removing cvar %d\n", cvar->cvar_id);
     cvar_delete(cvar);
-    return;
+    return ERROR;
   }
 
   // Handle if it's a pipe
