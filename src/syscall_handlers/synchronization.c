@@ -34,8 +34,11 @@ int AcquireLockHandler(int lock_id) {
 
   int return_value = lock_acquire(ipc_wrapper, lock_id);
 
-  if (return_value == ERROR || return_value == ACQUIRE_SUCCESS) {
+  if (return_value == ERROR) {
     return ERROR;
+  }
+  else if (return_value == ACQUIRE_SUCCESS) {
+    return 0;
   }
   else if (return_value == ACQUIRE_BLOCKED) {
     current_process->state = BLOCKED;
@@ -93,7 +96,6 @@ int CvarInitHandler(int* cvar_idp) {
   // set current process to owner
   // set id to found id above
   // return if all of the above successful, throw ERROR upon failures
-  return 0;
 
   *cvar_idp = cvar_new(ipc_wrapper);
 

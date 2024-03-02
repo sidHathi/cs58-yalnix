@@ -212,7 +212,7 @@ int lock_acquire(ipc_wrapper_t* ipc_wrapper, int lock_id) {
 
 //function to release the lock
 int lock_release(ipc_wrapper_t* ipc_wrapper, int lock_id) {
-  TracePrintf(1, "Lock release function\n");
+  TracePrintf(1, "Lock release function with lock_id %d\n", lock_id);
 
   if (ipc_wrapper == NULL) {
     TracePrintf(1, "Lock Release: IPC Wrapper is NULL\n");
@@ -241,7 +241,7 @@ int lock_release(ipc_wrapper_t* ipc_wrapper, int lock_id) {
   if (lock->blocked == NULL) {
     TracePrintf(1, "Lock Release: Lock queue is null\n");
     return ERROR;
-  }
+  }  
 
   pcb_t* next_pcb =  queue_pop(lock->blocked);
 
