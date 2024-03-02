@@ -75,11 +75,11 @@ void TrapKernelHandler(UserContext* user_context) {
       rc = AcquireLockHandler((int) user_context->regs[0]);
       break;
     case YALNIX_LOCK_RELEASE:
-      TracePrintf(1, "TRAP KERNEL: invoking lock release syscall handler with identifier %d\n", *(int*)user_context->regs[0]);
+      TracePrintf(1, "TRAP KERNEL: invoking lock release syscall handler with identifier %d\n", (int) user_context->regs[0]);
       rc = ReleaseLockHandler((int) user_context->regs[0]);
       break;
     case YALNIX_CVAR_INIT:
-      TracePrintf(1, "TRAP KERNEL: invoking cvar init syscall handler with identifier %d\n", *(int*)user_context->regs[0]);
+      TracePrintf(1, "TRAP KERNEL: invoking cvar init syscall handler with identifier %d\n", (int)user_context->regs[0]);
       rc = CvarInitHandler((int*) user_context->regs[0]);
       break;
     case YALNIX_CVAR_SIGNAL:

@@ -553,6 +553,7 @@ KCCopy(KernelContext* kc_in, void* new_pcb_p, void* not_used)
 void
 enqueue_current_process()
 {
+  TracePrintf(1, "Enqueueing next process\n");
   if (current_process == NULL) {
     return;
   }
@@ -596,13 +597,27 @@ ScheduleNextProcess()
 
   // Handle empty ready queue
   if (next_process == NULL) {
-    TracePrintf(1, "Scheduler: CURRENT PROCESS NULL IN SCHEDULER\n");
+    TracePrintf(1, "Scheduler: NEXT PROCESS NULL IN SCHEDULER\n");
+
+    // SID: THIS IS WHAT YOU HAD 
+    /*
     if (current_process != NULL && current_process->pid == init_process->pid) {
       enqueue_current_process();
     }
 
     WriteRegister(REG_PTBR1, (unsigned int) idle_process->page_table);
     KernelContextSwitch(&KCSwitch, current_process, idle_process);
+    */
+   // THIS ENQUEUES IDLE EVEN IF CURRENT PROCESS IS READY TO KEEP GOING
+   // MY SOLUTION:
+
+    enqueue_current_process();
+    next_process = (pcb_t*) queue_pop(process_ready_queue);
+    if (next_process == NULL) {
+      WriteRegister(REG_PTBR1, (unsigned int) idle_process->page_table);
+      KernelContextSwitch(&KCSwitch, current_process, idle_process);
+    }
+    
   } else { // Round robin schedule
     TracePrintf(1, "Scheduler: Switching to process w/ pid %d from process w/ pid %d\n", next_process->pid, current_process != NULL ? current_process->pid : -1);
     enqueue_current_process();

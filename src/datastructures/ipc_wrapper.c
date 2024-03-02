@@ -61,6 +61,8 @@ ipc_wrapper_t* ipc_wrapper_init() {
     free(ipc_wrapper);
     return NULL;
   }
+
+  return ipc_wrapper;
 }
 
 //delete an existing IPC Wrapper
@@ -126,18 +128,23 @@ int lock_new(ipc_wrapper_t* ipc_wrapper) {
     return ERROR;
   }
 
+  if (ipc_wrapper->locks == NULL) {
+    TracePrintf(1, "Lock New: ipc_wrapper lock set has not been initialized\n");
+    return ERROR;
+  }
+
   if (ipc_wrapper->locks->node_count >= MAX_LOCKS) {
     TracePrintf(1, "Lock New: Maximum locks exceeded\n");
     return ERROR;
   }
-
+  
   lock_t* new_lock = (lock_t*) malloc(sizeof(lock_t));
-
+  
   if (new_lock == NULL) {
     TracePrintf(1, "Lock New: Couldn't malloc new lock\n");
     return ERROR;
   }
-
+  
   new_lock->lock_id = ipc_wrapper->next_ipc_id;
   ipc_wrapper->next_ipc_id++;
 
@@ -205,6 +212,8 @@ int lock_acquire(ipc_wrapper_t* ipc_wrapper, int lock_id) {
 
 //function to release the lock
 int lock_release(ipc_wrapper_t* ipc_wrapper, int lock_id) {
+  TracePrintf(1, "Lock release function\n");
+
   if (ipc_wrapper == NULL) {
     TracePrintf(1, "Lock Release: IPC Wrapper is NULL\n");
     return ERROR;
@@ -242,7 +251,7 @@ int lock_release(ipc_wrapper_t* ipc_wrapper, int lock_id) {
     return RELEASE_QUEUE_EMPTY;
   }
   else {
-    TracePrintf(1, "Lock Release: Giving ownership of lock %d tp process %d\n", lock->lock_id, next_pcb->pid);
+    TracePrintf(1, "Lock Release: Giving ownership of lock %d to process %d\n", lock->lock_id, next_pcb->pid);
     lock->owner = next_pcb->pid;
     return RELEASE_NEW_OWNER;
   }
