@@ -71,6 +71,20 @@ int ForkHandler() {
 // - exit
 
   TracePrintf(1, "Fork Handler: Entering the System Fork Handler\n");
+
+  // Count number of living processes. Return ERROR if we exceed MAX_PROCESSES
+  int num_processes = delayed_pcbs->node_count + blocked_pcbs->node_count + process_ready_queue->count;
+  if (current_process->pid == idle_process->pid || current_process->pid == init_process->pid) {
+    num_processes += 2; 
+  }
+  else {
+    num_processes += 3;
+  }
+  if (num_processes >= MAX_PROCESSES) {
+    TracePrintf(1, "Fork Handler: Max processes reached. Cannot fork a new process.\n");
+    return ERROR;
+  }
+
   WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_ALL);
 
   // allocate region 1 page table:

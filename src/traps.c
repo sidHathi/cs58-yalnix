@@ -137,7 +137,7 @@ void TrapClockHandler(UserContext* user_context) {
   }
 
   // Invoke Scheduler
-  ScheduleNextProcess(user_context);
+  ScheduleNextProcess();
   if (current_process != NULL) {
     memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
   } else {
@@ -147,17 +147,9 @@ void TrapClockHandler(UserContext* user_context) {
 
 // Trap handler for TRAP_ILLEGAL
 void TrapIllegalHandler(UserContext* user_context) {
-  // PSEUDOCODE
-  // Move the user_context's PCB to the dead PCB array (i.e. abort this process)
-  // use traceprintf to tell the user this is happening
-
-  // Checkpoint 2 functionality:
-  TracePrintf(1, "Trap Illegal! This trap is not yet handled!\n");
-  if (current_process != NULL) {
-    memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
-  } else {
-    ScheduleNextProcess();
-  }
+  TracePrintf(1, "Trap Illegal.\n");
+  ExitHandler(ERROR);
+  ScheduleNextProcess();
 }
 
 // Trap handler for TRAP_MEMORY
@@ -172,23 +164,60 @@ void TrapMemoryHandler(UserContext* user_context) {
   // Checkpoint 2 functionality:
   TracePrintf(1, "Trap Memory! This trap is not yet handled!\n");
   TracePrintf(1, "offending addr: %x program counter: %x\n", user_context->addr, user_context->pc);
-  int page_num = DOWN_TO_PAGE(user_context->addr) / PAGESIZE;
-  TracePrintf(1, "%d\n", page_num);
-  Halt();
+  // find the lowest point of memory in the stack
+  // set this point to addr
+  // note that this pointshould be rounded up to the next multiple of PAGESIZE bytes.
+  // should alloc and dealloc the necessary amount of mem for the address
+  unsigned int addr = user_context->regs[0];
+  helper_check_heap("Start\n");
+  TracePrintf(1, "In Memory handler\n");
+  TracePrintf(1, "Addr passed: %x\n", user_context->regs[0]);
+  TracePrintf(1, "Stack pointer: %x\n", current_process->usr_ctx->sp);
+  TracePrintf(1, "Current brk: %x\n", current_process->current_brk);
+  TracePrintf(1, "Current brk page index: %d\n", ((unsigned int) current_process->current_brk - VMEM_REGION_SIZE)/PAGESIZE);
+
+  // check if brk past user stack
+  if (DOWN_TO_PAGE(current_process->usr_ctx->sp) <= (unsigned int)addr) {
+    TracePrintf(1, "Error: Trap Memory trying to go above user stack\n");
+    ExitHandler(ERROR);
+    ScheduleNextProcess();
+    return;
+  }
+  // check if addr is above or below the current brk
+  if ((unsigned int)addr > (unsigned int)current_process->current_brk + 1 && addr < VMEM_1_BASE + VMEM_REGION_SIZE) {
+    int first_invalid_page_index = NUM_PAGES - 1;
+    int addr_page_index = DOWN_TO_PAGE(addr)/PAGESIZE - NUM_PAGES;
+
+    for(int pt_index = first_invalid_page_index; pt_index >= addr_page_index; pt_index--) {	
+	    
+	    if(current_process->page_table[pt_index].valid == 0) {		    
+		    int* allocated_frame = (int*) queue_pop(free_frame_queue);
+
+		    if(allocated_frame == NULL) {
+          ExitHandler(ERROR);
+          ScheduleNextProcess();
+          return;
+        }
+        TracePrintf(1, "Trap Memory: Allocating page %d\n", pt_index);
+        current_process->page_table[pt_index].valid = 1;
+        current_process->page_table[pt_index].prot = PROT_READ | PROT_WRITE;
+        current_process->page_table[pt_index].pfn = *allocated_frame;
+        free(allocated_frame);
+	    }
+	  }	
+  }
+  else {
+    ExitHandler(ERROR);
+    ScheduleNextProcess();
+
+  }
 }
 
 // Trap handler for TRAP_MATH
 void TrapMathHandler(UserContext* user_context) {
-  // PSEUDOCODE
-  // Move the user_context's PCB to the dead PCB array (i.e. abort this process)
-  // use traceprintf to tell the user this is happening
-
-  // Checkpoint 2 functionality:
-  TracePrintf(1, "Trap Math! This trap is not yet handled!\n");
-  memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
-  if (current_process != NULL) {
-    memcpy(user_context, current_process->usr_ctx, sizeof(UserContext));
-  }
+  TracePrintf(1, "Trap Math.\n");
+  ExitHandler(ERROR);
+  ScheduleNextProcess();
 }
 
 // Trap handler for TRAP_TTY_RECEIVE
