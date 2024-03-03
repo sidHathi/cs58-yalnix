@@ -413,7 +413,6 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   for (int i = 0; i < NUM_PAGES; i ++) {
     init_pages[i].valid = 0; // before LoadProgram, they're all invalid
   }
-  
 
   // get pid for new proccess
   int init_pid = helper_new_pid(init_pages);
@@ -421,7 +420,7 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // Load the input program into the init pcb
   if (LoadProgram(init_program_name, cmd_args, init_process) != 0) {
     TracePrintf(1, "LoadProgram failed for init\n");
-    return;
+    Halt();
   }
 
   // initialize terminals
@@ -781,7 +780,7 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
 
   /*
    * Set up the page tables for the process so that we can read the
-   * program into memory.  Get the right number of physical pages
+   * program into memory. Get the right number of physical pages
    * allocated, and set them all to writable.
    */
   pte_t* new_process_pages = malloc(sizeof(pte_t)*NUM_PAGES);

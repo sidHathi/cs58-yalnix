@@ -16,8 +16,10 @@ int PipeInitHandler(int* pipe_idp) {
     return ERROR;
   }
 
+  TracePrintf(1, "Initializing new pipe\n");
   int new_pipe_id = pipe_new(ipc_wrapper);
   if (new_pipe_id == ERROR) {
+    TracePrintf(1, "pipe initialization failed\n");
     return ERROR;
   }
 
