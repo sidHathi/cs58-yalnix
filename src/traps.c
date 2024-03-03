@@ -184,7 +184,7 @@ void TrapMemoryHandler(UserContext* user_context) {
     return;
   }
   // check if addr is above or below the current brk
-  if ((unsigned int)addr > (unsigned int)current_process->current_brk + 1 && addr < VMEM_1_BASE + VMEM_REGION_SIZE) {
+  if ((unsigned int)addr > (unsigned int)current_process->current_brk + PAGESIZE && addr < VMEM_1_BASE + VMEM_REGION_SIZE) {
     int first_invalid_page_index = NUM_PAGES - 1;
     int addr_page_index = DOWN_TO_PAGE(addr)/PAGESIZE - NUM_PAGES;
 
