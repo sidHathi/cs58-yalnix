@@ -15,6 +15,7 @@ int LockInitHandler(int* lock_idp) {
   // store lock in lock_ipd
   // return upon success, toss error if ERROR such as lock_ipd not existing
 
+  TracePrintf(1, "In Lock Init Handler\n");
   *lock_idp = lock_new(ipc_wrapper);
 
   if (*lock_idp == ERROR) {
@@ -33,13 +34,18 @@ int AcquireLockHandler(int lock_id) {
 
   int return_value = lock_acquire(ipc_wrapper, lock_id);
 
-  if (return_value == ERROR || return_value == ACQUIRE_SUCCESS) {
+  if (return_value == ERROR) {
     return ERROR;
+  }
+  else if (return_value == ACQUIRE_SUCCESS) {
+    return 0;
   }
   else if (return_value == ACQUIRE_BLOCKED) {
     current_process->state = BLOCKED;
     ScheduleNextProcess();
   }
+
+  return 0;
 }
 
 int ReleaseLockHandler(int lock_id) {
@@ -52,7 +58,29 @@ int ReleaseLockHandler(int lock_id) {
   // give the lock to the next owner
   // return ERROR if any of the above checks/attempts fail
 
-  return lock_release(ipc_wrapper, lock_id);
+  TracePrintf(1, "Release lock handler\n");
+
+  int return_value = lock_release(ipc_wrapper, lock_id);
+
+  if (return_value == ERROR) {
+    return ERROR;
+  }
+  else if (return_value == RELEASE_NEW_OWNER) {
+    int pid = ((lock_t*) set_find(ipc_wrapper->locks, lock_id))->owner;
+    TracePrintf(1, "Pid of process to unblock: %d\n", pid);
+    pcb_t* next_pcb = (pcb_t*) set_pop(blocked_pcbs, pid);
+    if (next_pcb == NULL) {
+      TracePrintf(1, "Nobody was on the global blocked set\n");
+    }
+    else {
+      TracePrintf(1, "Pid of process popped from global blocked set: %d\n", pid);
+    }
+    next_pcb->state = READY;
+    return queue_push(process_ready_queue, next_pcb);
+  }
+  else if (return_value == RELEASE_QUEUE_EMPTY) {
+    return 0;
+  }
 }
 
 int CvarInitHandler(int* cvar_idp) {
@@ -68,7 +96,6 @@ int CvarInitHandler(int* cvar_idp) {
   // set current process to owner
   // set id to found id above
   // return if all of the above successful, throw ERROR upon failures
-  return 0;
 
   *cvar_idp = cvar_new(ipc_wrapper);
 
