@@ -12,6 +12,9 @@
 
 /**** MACROS ****/
 #define MAX_PROCESSES 128 // Maximum number of processes allowed at any given time
+#define MAX_LOCKS 16
+#define MAX_CVARS 16
+#define MAX_PIPES 16
 #define NUM_PAGES VMEM_REGION_SIZE/PAGESIZE // Number of pages in a region
 
 

@@ -597,21 +597,9 @@ ScheduleNextProcess()
   // Handle empty ready queue
   if (next_process == NULL) {
     TracePrintf(1, "Scheduler: NEXT PROCESS NULL IN SCHEDULER\n");
-
-    // SID: THIS IS WHAT YOU HAD 
-    /*
-    if (current_process != NULL && current_process->pid == init_process->pid) {
-      enqueue_current_process();
-    }
-
-    WriteRegister(REG_PTBR1, (unsigned int) idle_process->page_table);
-    KernelContextSwitch(&KCSwitch, current_process, idle_process);
-    */
-   // THIS ENQUEUES IDLE EVEN IF CURRENT PROCESS IS READY TO KEEP GOING
-   // MY SOLUTION:
-
     enqueue_current_process();
     next_process = (pcb_t*) queue_pop(process_ready_queue);
+    // Switch to idle if no processes are ready to run
     if (next_process == NULL) {
       WriteRegister(REG_PTBR1, (unsigned int) idle_process->page_table);
       KernelContextSwitch(&KCSwitch, current_process, idle_process);
