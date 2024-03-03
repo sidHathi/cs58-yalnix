@@ -10,8 +10,6 @@ typedef struct {
 	int num_bytes_available;
 	queue_t* readers;
 	set_t* writers;
-	int read_available;
-	int write_available;
 } pipe_t;
 
 #endif

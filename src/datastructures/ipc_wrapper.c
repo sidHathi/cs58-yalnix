@@ -468,14 +468,12 @@ int pipe_new(ipc_wrapper_t* ipc_wrapper) {
   }
 
   pipe_t* pipe = (pipe_t*) malloc(sizeof(pipe_t));
-
   if (pipe == NULL) {
     TracePrintf(1, "Pipe New: cannot allocate memory for new pipe\n");
     return ERROR;
   }
 
   queue_t* readers = queue_new();
-
   if (readers == NULL) {
     TracePrintf(1, "Pipe New: cannot allocate memory for readers queue\n");
     free(pipe);
@@ -483,7 +481,6 @@ int pipe_new(ipc_wrapper_t* ipc_wrapper) {
   }
 
   set_t* writers = set_new();
-
   if (writers == NULL) {
     TracePrintf(1, "Pipe New: cannot allocate memory for writers set\n");
     free(pipe);
@@ -492,7 +489,6 @@ int pipe_new(ipc_wrapper_t* ipc_wrapper) {
   }
 
   pipe->buffer = malloc(sizeof(char) * (PIPE_BUFFER_LEN+1));
-
   if (pipe->buffer == NULL) {
     TracePrintf(1, "Pipe New: cannot allocate memory for pipe buffer\n");
     free(pipe);
@@ -505,8 +501,6 @@ int pipe_new(ipc_wrapper_t* ipc_wrapper) {
   ipc_wrapper->next_ipc_id++;
 
   pipe->num_bytes_available = 0;
-  pipe->read_available = 1;
-  pipe->write_available = 1;
   pipe->readers = readers;
   pipe->writers = writers;
 
@@ -593,33 +587,41 @@ int pipe_read(ipc_wrapper_t* ipc_wrapper, int pipe_id, void* buf, int len) {
   }
 
   // check that the buffer is valid 
-  if (!check_memory_validity(buf) || get_raw_page_no(buf) < 128) {
+  if (buf == NULL || !check_memory_validity(buf) || get_raw_page_no(buf) < 128) {
     return -1;
   }
+
   // check to see if there are bytes available
-  while (pipe->num_bytes_available  < 1 && !pipe->read_available) {
-    // block if none available
-    current_process->state = BLOCKED;
-    ScheduleNextProcess();
+  if (pipe->num_bytes_available < 1) {
+    // add to waiting queue for pipe readers
+    queue_push(pipe->readers, current_process);
+    set_insert(blocked_pcbs, current_process->pid, current_process);
+    // block until pipe has info
+    while (pipe->num_bytes_available  < 1) {
+      // block if none available
+      current_process->state = BLOCKED;
+      ScheduleNextProcess();
+    }
   }
+  set_pop(blocked_pcbs, current_process->pid);
 
   // at this point there should be bytes in the pipe to read
   // copy them into the buffer
-  pipe->read_available = 0;
   int num_bytes_to_copy = MIN(len, pipe->num_bytes_available);
   memcpy(buf, pipe->buffer, num_bytes_to_copy);
   pipe->num_bytes_available -= num_bytes_to_copy;
   // leftshift the buffer
   leftshift_buffer(pipe->buffer, PIPE_BUFFER_LEN, num_bytes_to_copy);
-
   // if there are still bytes available, unblock next reader
-  pcb_t* next_reader = queue_pop(pipe->readers);
-  if (next_reader != NULL) {
-    next_reader->state = READY;
-    set_pop(blocked_pcbs, next_reader->pid);
-    queue_push(process_ready_queue, next_reader);
+  if (pipe->num_bytes_available > 0) {
+    pcb_t* next_reader = queue_pop(pipe->readers);
+    TracePrintf(1, "popping pipe reader from read queue -> %d remain\n", pipe->readers->count);
+    if (next_reader != NULL) {
+      next_reader->state = READY;
+      set_pop(blocked_pcbs, next_reader->pid);
+      queue_push(process_ready_queue, next_reader);
+    }
   }
-
   // unblock any waiting writers
   for (set_node_t* pcb_node = pipe->writers->head; pcb_node != NULL; pcb_node = pcb_node->next) {
     pcb_t* pcb = pcb_node->item;
