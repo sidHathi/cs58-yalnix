@@ -87,12 +87,10 @@ int TtyWriteHandler(int tty_id, void* buf, int len) {
 
   TracePrintf(1, "Tty write handler called with buffer length %d\n", len);
   // check if the requested terminal is available to write -> block otherwise
-  if (!current_tty_state->availability[tty_id]) {
+  while (!current_tty_state->availability[tty_id]) {
     current_process->state = BLOCKED;
     current_process->tty_write_waiting = 1;
     queue_push(current_tty_state->write_queues[tty_id], current_process);
-  }
-  while (!current_tty_state->availability[tty_id]) {
     ScheduleNextProcess();
   }
   TracePrintf(1, "Tty write handler writing\n");
