@@ -520,6 +520,10 @@ int
 leftshift_buffer(void* buffer, int buffer_size, int dist)
 {
   void* tempbuffer = malloc(buffer_size - dist);
+  if (tempbuffer == NULL) {
+        TracePrintf(1, "Leftshift Buffer: Failed to mallloc!\n");
+        return ERROR;
+  }
   memcpy(tempbuffer, buffer + dist, buffer_size - dist);
   memset(buffer, 0, buffer_size);
   memcpy(buffer, tempbuffer, buffer_size - dist);

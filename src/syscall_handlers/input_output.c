@@ -97,6 +97,10 @@ int TtyWriteHandler(int tty_id, void* buf, int len) {
   // at this point the assumption is that the requested terminal is now available
   // copy the data in the buffer into a region 0 location (malloc, memcpy)
   void* r0_write_buffer = malloc(sizeof(char) * len);
+  if (r0_write_buffer == NULL) {
+    TracePrintf(1, "TTY Write Handler: Failed to mallloc!\n");
+    return ERROR;
+  }
   memcpy(r0_write_buffer, buf, len);
   // mark the current process as the current writer for the buffer
   current_tty_state->curr_writers[tty_id] = current_process;

@@ -307,6 +307,10 @@ int RegisterTrapHandlers() {
   }
 
   void** function_pointers = (void**) malloc(TRAP_VECTOR_SIZE * sizeof(void*));
+  if (function_pointers == NULL) {
+        TracePrintf(1, "Register Trap Handlers: Failed to mallloc function pointers!\n");
+        return ERROR;
+  }
   function_pointers[TRAP_KERNEL] = (void*) &TrapKernelHandler;
   function_pointers[TRAP_CLOCK] = (void*) &TrapClockHandler;
   function_pointers[TRAP_ILLEGAL] = (void*) &TrapIllegalHandler;

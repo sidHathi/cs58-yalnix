@@ -6,18 +6,55 @@ tty_state_t*
 tty_state_init()
 {
   tty_state_t* tty_state = malloc(sizeof(tty_state_t));
+  if (tty_state == NULL) {
+    TracePrintf(1, "TTY State Init: Failed to mallloc!\n");
+    return NULL;
+  }
 
   tty_state->availability = malloc(sizeof(int) * NUM_TERMINALS);
+  if (tty_state->availability == NULL) {
+    TracePrintf(1, "TTY State Init: Failed to mallloc!\n");
+    return NULL;
+  }
+  
   tty_state->curr_writers = malloc(sizeof(pcb_t*) * NUM_TERMINALS);
+  if (tty_state->curr_writers == NULL) {
+    TracePrintf(1, "TTY State Init: Failed to mallloc!\n");
+    return NULL;
+  }
+
   tty_state->curr_readers = malloc(sizeof(set_t*) * NUM_TERMINALS);
+  if (tty_state->curr_readers == NULL) {
+    TracePrintf(1, "TTY State Init: Failed to mallloc!\n");
+    return NULL;
+  }
+
   tty_state->buffers = malloc(sizeof(char*) * NUM_TERMINALS);
+  if (tty_state->buffers == NULL) {
+    TracePrintf(1, "TTY State Init: Failed to mallloc!\n");
+    return NULL;
+  }
+
   tty_state->bytes_available = malloc(sizeof(int) * NUM_TERMINALS);
+  if (tty_state->bytes_available == NULL) {
+    TracePrintf(1, "TTY State Init: Failed to mallloc!\n");
+    return NULL;
+  }
+
   tty_state->write_queues = malloc(sizeof(queue_t*) * NUM_TERMINALS);
+  if (tty_state->write_queues == NULL) {
+    TracePrintf(1, "TTY State Init: Failed to mallloc!\n");
+    return NULL;
+  }
   for (int i = 0; i < NUM_TERMINALS; i ++) {
     tty_state->availability[i] = 1; // all terminals initially available
     tty_state->curr_writers[i] = NULL;
     tty_state->curr_readers[i] = set_new();
     tty_state->buffers[i] = malloc(sizeof(char) * TERMINAL_MAX_LINE);
+    if (tty_state->buffers[i] == NULL) {
+      TracePrintf(1, "TTY State Init: Failed to mallloc!\n");
+      return NULL;
+    }
     tty_state->bytes_available[i] = 0;
     tty_state->write_queues[i] = queue_new();
   }
@@ -61,6 +98,10 @@ tty_handle_received(tty_state_t* tty_state, int tty_id, int num_bytes)
     }
     if (proc->tty_read_buffer_r0 == NULL) {
       proc->tty_read_buffer_r0 = malloc(TERMINAL_MAX_LINE * sizeof(char));
+      if (proc->tty_read_buffer_r0 == NULL) {
+        TracePrintf(1, "TTY Handle Received: Failed to mallloc!\n");
+        return;
+  }
     }
     
     TracePrintf(1, "tty_receive: Copying data into proc buffer with pid %d\n", proc->pid);
@@ -133,6 +174,10 @@ tty_buffer_consume(tty_state_t* tty_state, void* receipt_buffer, int tty_id, int
   TracePrintf(1, "Left shifting buffer\n", num_bytes);
   int remaining_bytes = tty_state->bytes_available[tty_id] - num_bytes_to_copy;
   void* temp_byte_buffer = malloc(sizeof(char) * remaining_bytes);
+  if (temp_byte_buffer == NULL) {
+    TracePrintf(1, "TTY Buffer Consume: Failed to mallloc!\n");
+    return;
+  }
   memcpy(temp_byte_buffer, tty_state->buffers[tty_id] + num_bytes_to_copy, remaining_bytes);
   memset(tty_state->buffers[tty_id], 0, TERMINAL_MAX_LINE);
   memcpy(tty_state->buffers[tty_id], temp_byte_buffer, remaining_bytes);

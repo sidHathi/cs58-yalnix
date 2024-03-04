@@ -32,21 +32,37 @@ pcbNew(
   new_pcb->parent = parent;
   new_pcb->page_table = initial_page_table;
   new_pcb->usr_ctx = (UserContext*) malloc(sizeof(UserContext));
+  if (new_pcb->usr_ctx == NULL) {
+        TracePrintf(1, "pcbNew: Failed to mallloc!\n");
+        return NULL;
+  }
   new_pcb->exit_status = 0;
   new_pcb->child_exit_status = 0;
   new_pcb->waiting = 0;
   memcpy(new_pcb->usr_ctx, initial_user_ctx, sizeof(UserContext));
   if (krn_ctx == NULL) {
     new_pcb->krn_ctx = (KernelContext*) malloc(sizeof(KernelContext));
+    if (new_pcb->krn_ctx == NULL) {
+        TracePrintf(1, "pcbNew: Failed to mallloc!\n");
+        return NULL;
+    }
   } else {
     new_pcb->krn_ctx = krn_ctx;
   }
   if (initial_kstack_pages == NULL) {
     new_pcb->kernel_stack_pages = malloc(sizeof(pte_t) * NUM_KSTACK_FRAMES);
+    if (new_pcb->kernel_stack_pages == NULL) {
+        TracePrintf(1, "pcbNew: Failed to mallloc!\n");
+        return NULL;
+  }
   } else {
     new_pcb->kernel_stack_pages = initial_kstack_pages;
   }
   new_pcb->tty_read_buffer_r0 = malloc(sizeof(char) * TERMINAL_MAX_LINE);
+  if (new_pcb->tty_read_buffer_r0 == NULL) {
+        TracePrintf(1, "newPcb: Failed to mallloc!\n");
+        return NULL;
+  }
   new_pcb->tty_read_buffer_r1 = NULL;
   new_pcb->tty_has_bytes = 0;
   new_pcb->tty_num_bytes_read = 0;
@@ -91,6 +107,10 @@ pcbFree(pcb_t* pcb, queue_t* free_frame_queue)
         pte_t page_entry = pcb->page_table[i];
         if (page_entry.valid == 1) {
           int* pfn_holder = (int*) malloc(sizeof(int));
+          if (pfn_holder == NULL) {
+            TracePrintf(1, "pcbFree: Failed to mallloc!\n");
+            return;
+          }
           *pfn_holder = page_entry.pfn;
           TracePrintf(1, "Pcb free releasing free frame\n");
           queue_push(free_frame_queue, pfn_holder);
@@ -127,6 +147,10 @@ pcbFree(pcb_t* pcb, queue_t* free_frame_queue)
         if (page_entry.valid)
         {
           int *pfn_holder = (int *)malloc(sizeof(int));
+          if (pfn_holder == NULL) {
+            TracePrintf(1, "pcbFree: Failed to mallloc!\n");
+            return;
+          }
           *pfn_holder = page_entry.pfn;
           queue_push(free_frame_queue, pfn_holder);
         }
@@ -151,6 +175,10 @@ pcbExit(pcb_t* pcb, queue_t* free_frame_queue)
         pte_t page_entry = pcb->page_table[i];
         if (page_entry.valid) {
           int* pfn_holder = (int*) malloc(sizeof(int));
+          if (pfn_holder == NULL) {
+            TracePrintf(1, "pcbExit: Failed to mallloc!\n");
+            return;
+          }
           *pfn_holder = page_entry.pfn;
           queue_push(free_frame_queue, pfn_holder);
         }
@@ -187,6 +215,10 @@ pcbExit(pcb_t* pcb, queue_t* free_frame_queue)
         if (page_entry.valid)
         {
           int *pfn_holder = (int *)malloc(sizeof(int));
+          if (pfn_holder == NULL) {
+            TracePrintf(1, "pcbExit: Failed to mallloc!\n");
+            return;
+          }
           *pfn_holder = page_entry.pfn;
           queue_push(free_frame_queue, pfn_holder);
         }

@@ -289,6 +289,10 @@ init_free_frame_queue(unsigned int num_frames)
 
     if (frame_region == 0) {
       int* frame_no = malloc(sizeof(int));
+      if (frame_no == NULL) {
+        TracePrintf(1, "Init Free Frames: Failed to mallloc for the frame number\n");
+        return;
+      }
       *frame_no = frame;
       queue_push(free_frame_queue, frame_no);
     }
@@ -376,6 +380,10 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   int stack_page_index = NUM_PAGES - 1;
   // NEW IN CHECKPOINT 3: allocate a new page table for the idle process
   pte_t* idle_pages = (pte_t*) malloc(sizeof(pte_t) * NUM_PAGES);
+  if (idle_pages == NULL) {
+        TracePrintf(1, "Kernel Start: Failed to mallloc idle pages!\n");
+        return;
+      }
   for (int i = 0; i < NUM_PAGES; i ++) {
     idle_pages[i].valid = 0; // all invalid to start
   }
@@ -388,7 +396,12 @@ KernelStart(char** cmd_args, unsigned int pmem_size, UserContext* usr_ctx)
   // set user context for idle and copy it into idle's pcb
   usr_ctx->pc = &DoIdle;
   usr_ctx->sp = (void*) (VMEM_1_LIMIT - 4);
-  idle_process = pcbNew(idle_pid, idle_pages, NULL, NULL, usr_ctx, (KernelContext*)malloc(sizeof(KernelContext)));
+  KernelContext* kernel_ctx = (KernelContext*)malloc(sizeof(KernelContext));
+  if (kernel_ctx == NULL) {
+        TracePrintf(1, "Kernel Start: Failed to mallloc for kernel context\n");
+        return;
+  }
+  idle_process = pcbNew(idle_pid, idle_pages, NULL, NULL, usr_ctx, kernel_ctx);
   helper_check_heap("358");
   // set up idle kernel stack frames
 
@@ -530,6 +543,10 @@ KCCopy(KernelContext* kc_in, void* new_pcb_p, void* not_used)
 
   if (new_pcb->krn_ctx == NULL) {
     new_pcb->krn_ctx = (KernelContext*) malloc(sizeof(KernelContext));
+    if (new_pcb->krn_ctx == NULL) {
+        TracePrintf(1, "Kernel Start: Failed to mallloc for kernel context in new_pcb\n");
+        return NULL;
+    }
   }
   TracePrintf(1, "kernel context pointer val %p, kc_in: %p\n", new_pcb->krn_ctx, kc_in);
   memcpy(new_pcb->krn_ctx, kc_in, sizeof(KernelContext));
@@ -656,6 +673,10 @@ free_page_frame(int region, int page_no)
   page_table_addr[page_no].valid = 0;
   page_table_addr[page_no].prot = 0;
   int* stored_frame_no = (int*)malloc(sizeof(int));
+  if (stored_frame_no == NULL) {
+        TracePrintf(1, "Free Page Frame: Failed to mallloc for stored frame number\n");
+        return;
+  }
   *stored_frame_no = frame_no;
   queue_push(free_frame_queue, stored_frame_no);
 }
@@ -800,6 +821,10 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
    * allocated, and set them all to writable.
    */
   pte_t* new_process_pages = malloc(sizeof(pte_t)*NUM_PAGES);
+  if (new_process_pages == NULL) {
+        TracePrintf(1, "Load Program: Failed to mallloc new process pages!\n");
+        return ERROR;
+  }
   helper_check_heap("allocated new process pages");
   for (int i = 0; i < NUM_PAGES; i ++) {
     int region = 0;

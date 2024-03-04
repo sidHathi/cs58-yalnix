@@ -89,6 +89,11 @@ int ForkHandler() {
 
   // allocate region 1 page table:
   pte_t* new_page_table = (pte_t*) malloc(sizeof(pte_t) * NUM_PAGES);
+  if (new_page_table == NULL) {
+    TracePrintf(1, "Fork handler: Failed to mallloc!\n");
+    return ERROR;
+  }
+
   for (int i = 0; i < NUM_PAGES; i ++) {
     new_page_table[i].valid = 0; // all invalid to start
   }
