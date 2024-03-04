@@ -59,8 +59,8 @@ ipc_wrapper_t* ipc_wrapper = NULL;
 
 
 // local helper function prototyes
-static void shrink_heap_pages(int prev_top_page_idx, int new_top_page_idx);
-static void expand_heap_pages(int prev_top_page_idx, int new_top_page_idx);
+static int shrink_heap_pages(int prev_top_page_idx, int new_top_page_idx);
+static int expand_heap_pages(int prev_top_page_idx, int new_top_page_idx);
 static void init_page_tables();
 static void init_free_frame_queue(unsigned int num_frames);
 
@@ -72,7 +72,7 @@ static void init_free_frame_queue(unsigned int num_frames);
  * If virtual memory is not enabled, it marks the frame as not being
  * used in the free_boot_frames array
 */
-void
+int
 shrink_heap_pages(int prev_top_page_idx, int new_top_page_idx)
 {
   TracePrintf(1, "Moving kernelbrk from page %d to page %d\n", prev_top_page_idx, new_top_page_idx);
@@ -85,10 +85,14 @@ shrink_heap_pages(int prev_top_page_idx, int new_top_page_idx)
 
     if (virtual_mem_enabled) {
       int* page_loc = malloc(sizeof(int));
+      if (page_loc == NULL) {
+        return ERROR;
+      }
       *page_loc = region_0_pages[i].pfn;
       queue_push(free_frame_queue, page_loc);
     }
   }
+  return 0;
 }
 
 /**
@@ -97,7 +101,7 @@ shrink_heap_pages(int prev_top_page_idx, int new_top_page_idx)
  * with the frame number that equals the page index. In the case that
  * virtual memory is enabled, the brk should be raised -> idk if
 */
-void
+int
 expand_heap_pages(int prev_top_page_idx, int new_top_page_idx)
 {
   // loop from prev to new top page ++
@@ -107,11 +111,16 @@ expand_heap_pages(int prev_top_page_idx, int new_top_page_idx)
   // set the permissions for the page
   // mark as valid
   TracePrintf(1, "Moving kernelbrk from page %d to page %d\n", prev_top_page_idx, new_top_page_idx);
-  for (int i = prev_top_page_idx; i < new_top_page_idx; i ++) {
+  for (int i = prev_top_page_idx - 1; i < new_top_page_idx; i ++) {
+    if (region_0_pages[i].valid) continue;
+
     int* frame_no_ptr;
     int frame_no;
     if (virtual_mem_enabled) {
       frame_no_ptr = (int*)queue_pop(free_frame_queue);
+      if (frame_no_ptr == NULL) {
+        return ERROR;
+      }
       frame_no = *frame_no_ptr;
       free(frame_no_ptr);
     } else {
@@ -163,10 +172,14 @@ SetKernelBrk(void* addr)
 
   if (suggested_brk_page_idx < curr_brk_page_idx) {
     TracePrintf(1, "calling shrink_heap_pages\n");
-    shrink_heap_pages(curr_brk_page_idx, suggested_brk_page_idx);
+    if (shrink_heap_pages(curr_brk_page_idx, suggested_brk_page_idx) == ERROR) {
+      return ERROR;
+    }
   } else {
     TracePrintf(1, "calling expand_heap_pages\n");
-    expand_heap_pages(curr_brk_page_idx, suggested_brk_page_idx);
+    if (expand_heap_pages(curr_brk_page_idx, suggested_brk_page_idx) == ERROR) {
+      return ERROR;
+    }
   }
   
   kernel_brk_offset = suggested_brk_page_idx - _orig_kernel_brk_page;
@@ -835,7 +848,7 @@ LoadProgram(char *name, char *args[], pcb_t* proc)
 
   // set brk for new process:
   // proc->brk = data_pg1 + data_npg + 1;
-  proc->current_brk = (void*) ((data_pg1 + data_npg + 3)*PAGESIZE + VMEM_REGION_SIZE);
+  proc->current_brk = (void*) ((data_pg1 + data_npg + 1)*PAGESIZE + VMEM_REGION_SIZE);
 
   /* ==>> Throw away the old region 1 virtual address space by
    * ==>> curent process by walking through the R1 page table and,

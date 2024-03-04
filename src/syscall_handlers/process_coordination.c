@@ -389,7 +389,7 @@ int BrkHandler(void* addr) {
   }
   // check if addr is above or below the current brk
   if ((unsigned int)addr > (unsigned int)current_process->current_brk) {
-    int first_invalid_page_index = DOWN_TO_PAGE(current_process->current_brk)/PAGESIZE - NUM_PAGES;
+    int first_invalid_page_index = DOWN_TO_PAGE(current_process->current_brk)/PAGESIZE - NUM_PAGES - 1;
     int addr_page_index = DOWN_TO_PAGE(addr)/PAGESIZE - NUM_PAGES;
 
     for(int pt_index = first_invalid_page_index; pt_index <= addr_page_index; pt_index++) {	
@@ -406,10 +406,6 @@ int BrkHandler(void* addr) {
         current_process->page_table[pt_index].pfn = *allocated_frame;
         free(allocated_frame);
 	    }
-      else {
-        TracePrintf(1, "Issue Setting Brk: Trying to allocate already allocated page %d, please check mappings\n", pt_index);
-        return ERROR;
-      }
 	  }	
     current_process->current_brk = (void*) UP_TO_PAGE(addr);
   }
@@ -438,6 +434,7 @@ int BrkHandler(void* addr) {
   }
 
   helper_check_heap("End\n");
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 
   return 0;
 }

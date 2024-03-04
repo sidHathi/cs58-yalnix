@@ -109,6 +109,7 @@ int TtyWriteHandler(int tty_id, void* buf, int len) {
   for (int start_byte = 0; start_byte < len; start_byte += TERMINAL_MAX_LINE) {
     int transmit_size = MIN(len - start_byte, TERMINAL_MAX_LINE);
     TracePrintf(1, "Tty write handler invoking TtyTransmit\n");
+    current_tty_state->curr_writers[tty_id] = current_process;
     TtyTransmit(tty_id, (void*) (r0_write_buffer + start_byte), transmit_size);
     // block and invoke scheduler until write finishes
     current_process->state = BLOCKED;
@@ -131,6 +132,11 @@ int TtyWriteHandler(int tty_id, void* buf, int len) {
     next_writer->tty_write_waiting = 0;
     set_pop(blocked_pcbs, next_writer->pid);
     queue_push(process_ready_queue, next_writer);
+    // maybe change this -> the rationale is that waiting processes need to
+    // write immediately after they're unblocked, or else there's a chance
+    // that they'll wake up and the current process will already have started
+    // writing again -> maybe talk about this in OH
+    ScheduleNextProcess();
   }
 
   // return success to user

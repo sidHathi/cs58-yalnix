@@ -168,10 +168,10 @@ void TrapMemoryHandler(UserContext* user_context) {
   // set this point to addr
   // note that this pointshould be rounded up to the next multiple of PAGESIZE bytes.
   // should alloc and dealloc the necessary amount of mem for the address
-  unsigned int addr = user_context->regs[0];
+  unsigned int addr = (unsigned int) user_context->addr;
   helper_check_heap("Start\n");
   TracePrintf(1, "In Memory handler\n");
-  TracePrintf(1, "Addr passed: %x\n", user_context->regs[0]);
+  TracePrintf(1, "Addr passed: %x\n", addr);
   TracePrintf(1, "Stack pointer: %x\n", current_process->usr_ctx->sp);
   TracePrintf(1, "Current brk: %x\n", current_process->current_brk);
   TracePrintf(1, "Current brk page index: %d\n", ((unsigned int) current_process->current_brk - VMEM_REGION_SIZE)/PAGESIZE);
@@ -204,12 +204,12 @@ void TrapMemoryHandler(UserContext* user_context) {
         current_process->page_table[pt_index].pfn = *allocated_frame;
         free(allocated_frame);
 	    }
+      WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 	  }	
   }
   else {
     ExitHandler(ERROR);
     ScheduleNextProcess();
-
   }
 }
 
