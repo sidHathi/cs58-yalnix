@@ -50,5 +50,13 @@ data
 .vscode
 .vscode/*
 
-# Local readme
-MASTER_OUTLINE.md
+# Text files
+*DISK
+*TTYLOG*
+*TRACE
+
+# Executables
+*yalnix
+*yalnix_framework*
+init
+tests/test_fork_exec

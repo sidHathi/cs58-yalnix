@@ -1,14 +1,11 @@
 #ifndef _cvar_h
 #define _cvar_h
 
-#include <yalnix.h>
-#include <hardware.h>
 #include "queue.h"
 
-typedef struct cvar cvar_t;
+typedef struct cvar {
+  int cvar_id; // unique identifier
+  queue_t* blocked; // FIFO queue of PCB's waiting on cvar
+} cvar_t;
 
-cvar_t* cvar_new(int cvar_id, int owner);
-
-void cvar_free(cvar_t* cvar);
-
-#endif /*!_cvar_h*/
+#endif

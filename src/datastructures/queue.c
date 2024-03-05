@@ -4,71 +4,108 @@
 
 // Generic FIFO queue
 // Source: https://www.geeksforgeeks.org/queue-linked-list-implementation/#
+// Modified to suit our needs
 
-// A linked list (LL) node to store a queue entry
-typedef struct qnode {
-	int key;
-	qnode_t* next;
-} qnode_t;
-
-// The queue, front stores the front node of LL and rear
-// stores the last node of LL
-typedef struct queue {
-	qnode_t *front, *rear;
-} queue_t;
-
-qnode_t*
-newNode(int k)
-{
-	qnode_t* temp
-		= (qnode_t*)malloc(sizeof(qnode_t));
-	temp->key = k;
-	temp->next = NULL;
-	return temp;
-}
-
+// Create new queue
 queue_t*
-createQueue()
+queue_new()
 {
-	queue_t* q
-		= (queue_t*)malloc(sizeof(queue_t));
+	queue_t* q = (queue_t*) malloc(sizeof(queue_t));
+	if (q == NULL) {
+		return NULL;
+	}
 	q->front = q->rear = NULL;
+	q->next_key = 0;
+	q->count = 0;
 	return q;
 }
 
-void
-enQueue(queue_t* q, int k)
-{
-	// Create a new LL node
-	qnode_t* temp = newNode(k);
-
-	// If queue is empty, then new node is front and rear
-	// both
-	if (q->rear == NULL) {
-		q->front = q->rear = temp;
-		return;
+// Enqueue new node
+int
+queue_push(queue_t* q, void* data)
+{	
+	if (q == NULL || data == NULL) {
+		TracePrintf(1, "Queue Push: got null queue pointer or null data pointer\n");
+		return ERROR;
 	}
 
-	// Add the new node at the end of queue and change rear
-	q->rear->next = temp;
-	q->rear = temp;
+	qnode_t* new_node = (qnode_t*) malloc(sizeof(qnode_t));
+	if (new_node == NULL) {
+		TracePrintf(1, "Queue Push: failed to allocate memory for new queue node\n");
+		return ERROR;
+	}
+
+	new_node->data = data;
+	new_node->key = q->next_key;
+	new_node->next = NULL;
+	
+
+	// If queue is empty, then new node is front and rear
+	if (q->rear == NULL) {
+		q->front = new_node;
+		q->rear = new_node;
+	}
+	// Otherwise, push node to end
+	else {
+		q->rear->next = new_node;
+		q->rear = new_node;
+	}
+
+	q->next_key++;
+	q->count++;
+  return 0;
 }
 
-void
-deQueue(queue_t* q)
+// Dequeue front node
+void*
+queue_pop(queue_t* q)
 {
-	// If queue is empty, return NULL.
+	if (q == NULL) {
+		return NULL;
+	}
+
 	if (q->front == NULL)
-		return;
+		return NULL;
 
 	// Store previous front and move front one node ahead
-	struct QNode* temp = q->front;
-
+	qnode_t* front_node = q->front;
 	q->front = q->front->next;
 
 	// If front becomes NULL, then change rear also as NULL
 	if (q->front == NULL)
 		q->rear = NULL;
 
-	free(temp);
+	// Store pointer to popped node's data
+	void* data = front_node->data;
+
+	// Free the popped node
+	free(front_node);
+
+	// Decrement count
+	q->count--;
+
+	// Return pointer to popped node's data
+	return data;
 }
+
+int queue_delete(queue_t* q, void* arg, void (*itemdelete)(void* data, void* arg)) {
+  if (q == NULL) {
+		TracePrintf(1, "Queue Free: got null queue pointerfree function pointer\n");
+    return ERROR;
+  };
+
+  qnode_t* curr_node = q->front;
+
+  while (curr_node != NULL) {
+		qnode_t* next_node = curr_node->next;
+
+		if(itemdelete != NULL) {
+    	itemdelete(curr_node->data, arg);
+		}
+    free(curr_node);
+    curr_node = next_node;
+  }
+
+  return 0;
+};
+

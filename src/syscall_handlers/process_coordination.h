@@ -1,5 +1,5 @@
-#include "../../../yalnix_framework/include/yalnix.h"
-#include "../../../yalnix_framework/include/ykernel.h"
+#include <yalnix.h>
+#include <ykernel.h>
 
 /*
 * Fork:
@@ -85,8 +85,7 @@ int GetPidHandler(void);
 * The value 0 is returned on success. If any error is encountered (for example, if not enough memory is available
 * or if the address addr is invalid), the value ERROR is returned.
 */
-int KernelBrk(void* addr);
-
+int BrkHandler(void* addr);
 
 /*
 * Delay:
@@ -97,4 +96,4 @@ int KernelBrk(void* addr);
 * ERROR is returned instead.
 
 */
-int KernelDelay(int clock_ticks);
+int DelayHandler(int clock_ticks);

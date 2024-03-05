@@ -6,7 +6,7 @@
 *
 * Create a new lock; save its identifier at *lock idp. In case of any error, the value ERROR is returned.
 */
-int LockInitHandler(int* lock_ipd);
+int LockInitHandler(int* lock_idp);
 
 
 /*
@@ -32,7 +32,7 @@ int ReleaseLockHandler(int lock_id);
 * Create a new condition variable; save its identifier at *cvar idp. In case of any error, the value ERROR is
 * returned.
 */
-int CvarInitHandler(int* cvar_ipd);
+int CvarInitHandler(int* cvar_idp);
 
 
 /*
@@ -41,7 +41,7 @@ int CvarInitHandler(int* cvar_ipd);
 * Signal the condition variable identified by cvar id. (Use Mesa-style semantics.) In case of any error, the value
 * ERROR is returned.
 */
-int CvarSignalHandler(int cvar_ip);
+int CvarSignalHandler(int cvar_id);
 
 
 /*
