@@ -31,8 +31,14 @@ void TrapKernelHandler(UserContext* user_context) {
       rc = user_context->regs[0];
       break;
     case YALNIX_WAIT:
-      TracePrintf(1, "TRAP KERNEL: invoking wait syscall handler with pid %d\n", user_context->regs[0]);
-      rc = WaitHandler((int*) user_context->regs[0]);
+      TracePrintf(1, "TRAP KERNEL: invoking wait syscall handler with address %x\n", user_context->regs[0]);
+      if ((unsigned int) user_context->regs[0] < VMEM_0_LIMIT) {
+        TracePrintf(1, "Security Risk in Trap Kernel: User trying to pass address in region 0. Returning ERROR\n");
+        rc = ERROR;
+      }
+      else {
+        rc = WaitHandler((int*) user_context->regs[0]);
+      }
       break;
     case YALNIX_GETPID:
       TracePrintf(1, "TRAP KERNEL: invoking getpid syscall handler\n");
@@ -68,7 +74,13 @@ void TrapKernelHandler(UserContext* user_context) {
       break;
     case YALNIX_LOCK_INIT:
       TracePrintf(1, "TRAP KERNEL: invoking lock init syscall handler with identifier %d\n", *(int*)user_context->regs[0]);
-      rc = LockInitHandler((int*) user_context->regs[0]);
+      if ((unsigned int) user_context->regs[0] < VMEM_0_LIMIT) {
+        TracePrintf(1, "Security Risk in Trap Kernel: User trying to pass address in region 0. Returning ERROR\n");
+        rc = ERROR;
+      }
+      else {
+        rc = LockInitHandler((int*) user_context->regs[0]);
+      }
       break;
     case YALNIX_LOCK_ACQUIRE:
       TracePrintf(1, "TRAP KERNEL: invoking lock acquire syscall handler with identifier %d\n", user_context->regs[0]);
@@ -80,7 +92,13 @@ void TrapKernelHandler(UserContext* user_context) {
       break;
     case YALNIX_CVAR_INIT:
       TracePrintf(1, "TRAP KERNEL: invoking cvar init syscall handler with identifier %d\n", (int)user_context->regs[0]);
-      rc = CvarInitHandler((int*) user_context->regs[0]);
+      if ((unsigned int) user_context->regs[0] < VMEM_0_LIMIT) {
+        TracePrintf(1, "Security Risk in Trap Kernel: User trying to pass address in region 0. Returning ERROR\n");
+        rc = ERROR;
+      }
+      else {
+        rc = CvarInitHandler((int*) user_context->regs[0]);
+      }
       break;
     case YALNIX_CVAR_SIGNAL:
       TracePrintf(1, "TRAP KERNEL: invoking cvar signal syscall handler on cvar %d\n", user_context->regs[0]);
