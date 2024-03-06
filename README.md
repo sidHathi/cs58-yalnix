@@ -8,7 +8,7 @@ Contributors: Brody Thompson, Sid Hathi, and Asher Vogel
 
 The Yalnix operating system is built on top of simulated hardware written by Dave Johnson (Rice University), Adam Salem (Dartmouth College), and Sean Smith (Dartmouth College). This infrastructure, written in C, exposes a number of hardware services including general purpose and priveleged registers, physical memory, an MMU with a built-in TLB, a clock , and terminals. The "hardware" is designed to run on a Unix flavor system and provides the services and resources to the Yalnix operating system.
 
-### Data Structures: [Directory](./src/datastructures/)
+### Data Structures
 
 We built strongly cohesive data structures to minimize redundancies and enable comprehensive unit testing.
 
@@ -38,7 +38,7 @@ The pipe structure fascilitates inter-process communication via an allocated ```
 
 #### IPC Wrapper: [Source Code](./src/datastructures/ipc_wrapper.c) and [Header File](./src/datastructures/ipc_wrapper.h)
 
-The IPC wrapper structure, short for inter-process communication wrapper, is designed to be allocated as a global by the kernel itself. It contains a set of locks, a set of cvars, and a set of pipes, as well as utility functions for creating and removing locks, cvars, and pipes. The data structure contains an integer that corresponds to the ID of the next structure allocated. This ensure that no two inter-process communication structure (locks, cvars, pipes) share an ID.
+The IPC wrapper structure, short for inter-process communication wrapper, is designed to be allocated as a global by the kernel itself. It contains a set of locks, a set of cvars, and a set of pipes, as well as utility functions for creating and removing locks, cvars, and pipes. To ensure no two inter-process communication structures (locks, cvars, pipes) share an ID, the data structure maintains an integer that corresponds to the next ID to assign. Whenever an IPC structure is added to one of the sets, this integer is incremented.
 
 #### Process Control Block (PCB): [Source Code](./src/datastructures/pcb.c) and [Header File](./src/datastructures/pcb.h)
 
@@ -53,7 +53,7 @@ The ```KernelStart``` function is responsible for the pivotal functionality of t
   - Allocate memory for the global process ready queue, a set for all blocked processes, a for all delayed processes, and a set for all dead processes
   - Register all trap handlers
   - Set up idle PCB for when no processes are ready to run
-  - Load init program into current PCB
+  - Load init program into current PCB using ```LoadProgram```
 
 The Yalnix kernel prioritizes fairness and efficiency. The system implements round-robin scheduling, allocating CPU time slices evenly across all active processes. Each process is granted a slice of execution time, with the scheduler swiftly transitioning between tasks to maintain responsiveness and optimize throughput. Round robin scheduling is handled by ```ScheduleNextProcess```. Note that this function only moves the outgoing process's PCB to the appropriate data structure (ready queue, blocked processes, etc.) and performs the kernel context swtich. The calling process is responsible for copying the user context.
 
@@ -75,20 +75,6 @@ We ran all tests in this testing directory. To try a test called "my_test," run 
 - Massive user heap
 - Pipe buffer overflow
 - Null pointer dereferencing 
-
-### [User Programs](./src/programs/)
-
-  - #### [Idle](./src/programs/idle.h)
-
-### [Syscall Handlers](./src/syscall_handlers/)
-
-  - #### [Process Coordination](./src/syscall_handlers/process_coordination.h)
-
-  - #### [Input/Output](./src/syscall_handlers/input_output.h)
-
-  - #### [Inter Process Communication](./src/syscall_handlers/ipc.h)
-
-  - #### [Synchronization](./src/syscall_handlers/synchronization.h)
 
 ## Usage
 
