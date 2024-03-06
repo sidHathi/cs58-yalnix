@@ -1,5 +1,10 @@
+#ifndef _ipc_h
+#define _ipc_h
+
 #include <yalnix.h>
 #include <ykernel.h>
+#include "../kernel.h"
+#include "../datastructures/ipc_wrapper.h"
 
 /*
 * PipeInit:
@@ -31,3 +36,5 @@ int PipeReadHandler(int pipe_id, void* buf, int len);
 * buffer. In case of any error, the value ERROR is returned. Otherwise, return the number of bytes written.
 */
 int PipeWriteHandler(int pipe_id, void* buf, int len);
+
+#endif

@@ -1,11 +1,4 @@
-#include <yalnix.h>
-#include <ykernel.h>
-#include <unistd.h>
-#include "../kernel.h"
-#include "../datastructures/pcb.h"
-#include "../datastructures/set.h"
 #include "process_coordination.h"
-#include "../datastructures/set.h"
 
 // helper function for pcb list management:
 // removes the pcb with pid `pid` from the `list`

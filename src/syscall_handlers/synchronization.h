@@ -1,5 +1,10 @@
-#include "../../../yalnix_framework/include/yalnix.h"
-#include "../../../yalnix_framework/include/ykernel.h"
+#ifndef _synchronization_h
+#define _synchronization_h
+
+#include <yalnix.h>
+#include <ykernel.h>
+#include "../datastructures/ipc_wrapper.h"
+#include "../kernel.h"
 
 /*
 * LockInit:
@@ -73,3 +78,6 @@ int CvarWaitHandler(int cvar_id, int lock_id);
 * If you feel additional specification is necessary to handle unusual scenarios, then create and document it.
 */
 int ReclaimHandler(int id);
+
+
+#endif

@@ -1,8 +1,4 @@
-#include <yalnix.h>
-#include <ykernel.h>
 #include "ipc.h"
-#include "../kernel.h"
-#include "../datastructures/ipc_wrapper.h"
 
 int PipeInitHandler(int* pipe_idp) {
 

@@ -1,5 +1,9 @@
+#ifndef _input_output_h
+#define _ifnput_output_h
+
 #include <yalnix.h>
 #include <ykernel.h>
+#include "../kernel.h"
 
 /*
   * TtyRead:
@@ -27,3 +31,5 @@ int TtyReadHandler(int tty_id, void* buf, int len);
 * Calls to TtyWrite for more than TERMINAL MAX LINE bytes should be supported.
 */
 int TtyWriteHandler(int tty_id, void* buf, int len);
+
+#endif
