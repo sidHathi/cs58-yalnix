@@ -1,5 +1,12 @@
+#ifndef _process_coordination_h
+#define _process_coordination_h
+
 #include <yalnix.h>
 #include <ykernel.h>
+#include <unistd.h>
+#include "../kernel.h"
+#include "../datastructures/pcb.h"
+#include "../datastructures/set.h"
 
 /*
 * Fork:
@@ -97,3 +104,5 @@ int BrkHandler(void* addr);
 
 */
 int DelayHandler(int clock_ticks);
+
+#endif

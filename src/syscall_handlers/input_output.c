@@ -1,7 +1,4 @@
-#include "../../../yalnix_framework/include/yalnix.h"
-#include "../../../yalnix_framework/include/ykernel.h"
-#include "kernel.h"
-#include "util.h"
+#include "input_output.h"
 
 int TtyReadHandler(int tty_id, void* buf, int len) {
   /*

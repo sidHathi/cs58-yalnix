@@ -1,13 +1,20 @@
 #ifndef _kernel_h
 #define _kernel_h
 
+#include <fcntl.h>
+#include <unistd.h>
+#include <ctype.h>
 #include <yalnix.h>
+#include <ykernel.h>
 #include <hardware.h>
+#include <load_info.h>
+#include "traps.h"
 #include "datastructures/queue.h"
 #include "datastructures/pcb.h"
-#include "datastructures/tty_state.h"
 #include "datastructures/set.h"
+#include "datastructures/tty_state.h"
 #include "datastructures/ipc_wrapper.h"
+#include "programs/idle.h"
 
 
 /**** MACROS ****/
@@ -16,7 +23,6 @@
 #define MAX_CVARS 16
 #define MAX_PIPES 16
 #define NUM_PAGES VMEM_REGION_SIZE/PAGESIZE // Number of pages in a region
-
 
 /*** GLOBAL VARIABLES ****/
 
@@ -32,16 +38,12 @@ extern queue_t* process_ready_queue;
 extern set_t* delayed_pcbs;
 extern set_t* dead_pcbs;
 extern set_t* blocked_pcbs;
-// extern linked_list_t* delayed_pcb_list;
-// extern linked_list_t* dead_pcb_list;
-// extern linked_list_t* blocked_pcb_list;
 
 // Array of strings for kernel to store input from the terminals
 extern char* tty_buffers[NUM_TERMINALS];
 
 // global definition for free frame queue pointer -> actual queue lives in kernel heap
 extern queue_t* free_frame_queue;
-
 
 // global defs for lock, cvar and pipe IDs
 extern int next_lock_id;
@@ -67,6 +69,9 @@ extern unsigned long kernel_brk_offset;
 extern ipc_wrapper_t* ipc_wrapper;
 
 /**** IMPORTANT FUNCTIONS ****/
+
+// Helper function that takes in a memory address and returns the index of its page number
+int get_raw_page_no(void* addr);
 
 // OS terminal state
 extern tty_state_t* current_tty_state;

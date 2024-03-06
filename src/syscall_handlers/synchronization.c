@@ -1,7 +1,4 @@
-#include <yalnix.h>
-#include <ykernel.h>
-#include "../datastructures/ipc_wrapper.h"
-#include "../kernel.h"
+#include "synchronization.h"
 
 int LockInitHandler(int* lock_idp) {
   /* 

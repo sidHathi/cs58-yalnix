@@ -180,7 +180,7 @@ void TrapMemoryHandler(UserContext* user_context) {
     // use traceprintf to tell the user this is happening
 
   // Checkpoint 2 functionality:
-  TracePrintf(1, "Trap Memory! This trap is not yet handled!\n");
+  TracePrintf(1, "Trap Memory!\n");
   TracePrintf(1, "offending addr: %x program counter: %x\n", user_context->addr, user_context->pc);
   // find the lowest point of memory in the stack
   // set this point to addr
@@ -240,15 +240,6 @@ void TrapMathHandler(UserContext* user_context) {
 
 // Trap handler for TRAP_TTY_RECEIVE
 void TrapTTYReceiveHandler(UserContext* user_context) {
-  // PSEUDOCODE
-  // Get terminal index from user_context.code
-  // Use hardware operation TtyReceive to get input from terminal.
-  // Copy terminal value into tty_buffers[user_context.code]
-  // This value is available for user process to copy via TtyRead
-
-  // Checkpoint 2 functionality:
-  // TracePrintf(1, "Trap TTY Receive! This trap is not yet handled!\n");
-
   // this trap needs to:
   // Call TtyReceive to move the data from the terminal into the current
   // terminal state buffer
@@ -271,14 +262,6 @@ void TrapTTYReceiveHandler(UserContext* user_context) {
 
 // Trap handler for TRAP_TTY_TRANSMIT
 void TrapTTYTransmitHandler(UserContext* user_context) {
-  // PSEUDOCODE
-  // Complete blocked process that started this terminal output
-  // If there is a next terminal output, display it
-
-  // Checkpoint 2 functionality:
-  // TracePrintf(1, "Trap TTY Transmit! This trap is not yet handled!\n");
-
-
   // this trap needs to:
   // figure out which process is currently writing
   // unblock it
