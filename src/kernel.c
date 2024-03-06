@@ -1,18 +1,4 @@
-#include <fcntl.h>
-#include <unistd.h>
-#include <ctype.h>
-#include <yalnix.h>
-#include <ykernel.h>
-#include <yuser.h>
-#include <hardware.h>
-#include <load_info.h>
 #include "kernel.h"
-#include "traps.h"
-#include "datastructures/queue.h"
-#include "datastructures/pcb.h"
-#include "datastructures/set.h"
-#include "programs/idle.h"
-
 
 // Macros that enumerate page table regions
 #define REGION_UNUSED 0
@@ -20,6 +6,7 @@
 #define REGION_KERNEL_TEXT 2
 #define REGION_KERNEL_DATAHEAP 3
 #define REGION_KERNEL_STACK 4
+
 
 // Initialize globals
 pcb_t* current_process = NULL;
@@ -38,31 +25,14 @@ unsigned int virtual_mem_enabled = 0;
 unsigned long kernel_brk_offset = 0;
 ipc_wrapper_t* ipc_wrapper = NULL;
 
+// ****** IMPLEMENT HELPER FUNCTIONS *******
 
-// Old initializations
-// unsigned long kernel_brk_offset = 0;
-// unsigned int virtual_mem_enabled = 0;
-// unsigned int num_blocked_processes = 0;
-// unsigned int num_ready_processes = 0;
-// unsigned int num_dead_processes = 0;
-// char* tty_buffers[NUM_TERMINALS];
-// queue_t* free_frame_queue = NULL;
-// pte_t region_0_pages[VMEM_REGION_SIZE/PAGESIZE];
-// pte_t region_1_pages[VMEM_REGION_SIZE/PAGESIZE];
-// queue_t* process_ready_queue = NULL;
-// linked_list_t* blocked_pcb_list = NULL;
-// linked_list_t* dead_pcb_list = NULL;
-// linked_list_t* delayed_pcb_list = NULL;
-// pcb_t* current_process = NULL;
-// pcb_t* init_process = NULL;
-// pcb_t* idle_process = NULL;
-
-
-// local helper function prototyes
-static int shrink_heap_pages(int prev_top_page_idx, int new_top_page_idx);
-static int expand_heap_pages(int prev_top_page_idx, int new_top_page_idx);
-static void init_page_tables();
-static void init_free_frame_queue(unsigned int num_frames);
+int
+get_raw_page_no(void* addr)
+{
+  int page_no = (unsigned int)addr/PAGESIZE;
+  return page_no;
+}
 
 /**
  * Helper function: iterates over page from the old top index
@@ -131,59 +101,6 @@ expand_heap_pages(int prev_top_page_idx, int new_top_page_idx)
     region_0_pages[i].valid = 1;
     region_0_pages[i].prot = PROT_READ | PROT_WRITE;
   }
-}
-
-int
-SetKernelBrk(void* addr)
-{
-  // IMPORTANT -> need to consider case where brk is shrinking
-  // calculate offset from original brk
-  // determine whether new address is valid
-    // if not valid, return an error, traceprint
-  // if virtual memory enabled:
-    // calculate out how many new frames need to be enabled
-    // for each one that doesn't have a frame, pop a random frame
-    // from the global free frame queue and assign it to that page
-    // set the appropriate permissions for the newly valid page
-  // otherwise:
-    // MANUALLY ASSIGN FRAME NUMBERS to the pages between current and new kernel brk
-    // each new valid frame should map to the same frame number
-    // in physical memory
-    // if the queue contains that frame, remove it
-  // modify the page table to reflect page-> frame mapping
-  // set hardware register for kernel break
-  // set global for kernel_brk_offset
-  // return 0 if succesful
-
-  int curr_brk_page_idx = _orig_kernel_brk_page + kernel_brk_offset;
-  int suggested_brk_page_idx = UP_TO_PAGE(addr)/PAGESIZE;
-  // check to make sure that the suggested brk is not below the original brk
-  // check to make sure that the suggested brk is not above the stack start page
-  // check to make sure that if the brk is shrinking, there's nothing in the pages that will now be above the brk
-  if (suggested_brk_page_idx < _orig_kernel_brk_page) {
-    TracePrintf(1, "attempting to set kernel brk below original brk\n");
-    return -1;
-  }
-
-  if (suggested_brk_page_idx > (int)DOWN_TO_PAGE((int)KERNEL_STACK_BASE)) {
-    TracePrintf(1, "attempting to set kernel brk above kernel stack base\n");
-    return -1;
-  }
-
-  if (suggested_brk_page_idx < curr_brk_page_idx) {
-    TracePrintf(1, "calling shrink_heap_pages\n");
-    if (shrink_heap_pages(curr_brk_page_idx, suggested_brk_page_idx) == ERROR) {
-      return ERROR;
-    }
-  } else {
-    TracePrintf(1, "calling expand_heap_pages\n");
-    if (expand_heap_pages(curr_brk_page_idx, suggested_brk_page_idx) == ERROR) {
-      return ERROR;
-    }
-  }
-  
-  kernel_brk_offset = suggested_brk_page_idx - _orig_kernel_brk_page;
-  return 0;
 }
 
 /**
@@ -308,6 +225,59 @@ count_cmd_args(char** cmd_args)
     i ++;
   }
   return i;
+}
+
+int
+SetKernelBrk(void* addr)
+{
+  // IMPORTANT -> need to consider case where brk is shrinking
+  // calculate offset from original brk
+  // determine whether new address is valid
+    // if not valid, return an error, traceprint
+  // if virtual memory enabled:
+    // calculate out how many new frames need to be enabled
+    // for each one that doesn't have a frame, pop a random frame
+    // from the global free frame queue and assign it to that page
+    // set the appropriate permissions for the newly valid page
+  // otherwise:
+    // MANUALLY ASSIGN FRAME NUMBERS to the pages between current and new kernel brk
+    // each new valid frame should map to the same frame number
+    // in physical memory
+    // if the queue contains that frame, remove it
+  // modify the page table to reflect page-> frame mapping
+  // set hardware register for kernel break
+  // set global for kernel_brk_offset
+  // return 0 if succesful
+
+  int curr_brk_page_idx = _orig_kernel_brk_page + kernel_brk_offset;
+  int suggested_brk_page_idx = UP_TO_PAGE(addr)/PAGESIZE;
+  // check to make sure that the suggested brk is not below the original brk
+  // check to make sure that the suggested brk is not above the stack start page
+  // check to make sure that if the brk is shrinking, there's nothing in the pages that will now be above the brk
+  if (suggested_brk_page_idx < _orig_kernel_brk_page) {
+    TracePrintf(1, "attempting to set kernel brk below original brk\n");
+    return -1;
+  }
+
+  if (suggested_brk_page_idx > (int)DOWN_TO_PAGE((int)KERNEL_STACK_BASE)) {
+    TracePrintf(1, "attempting to set kernel brk above kernel stack base\n");
+    return -1;
+  }
+
+  if (suggested_brk_page_idx < curr_brk_page_idx) {
+    TracePrintf(1, "calling shrink_heap_pages\n");
+    if (shrink_heap_pages(curr_brk_page_idx, suggested_brk_page_idx) == ERROR) {
+      return ERROR;
+    }
+  } else {
+    TracePrintf(1, "calling expand_heap_pages\n");
+    if (expand_heap_pages(curr_brk_page_idx, suggested_brk_page_idx) == ERROR) {
+      return ERROR;
+    }
+  }
+  
+  kernel_brk_offset = suggested_brk_page_idx - _orig_kernel_brk_page;
+  return 0;
 }
 
 void

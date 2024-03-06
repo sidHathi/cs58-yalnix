@@ -55,15 +55,26 @@ The ```KernelStart``` function is responsible for the pivotal functionality of t
   - Set up idle PCB for when no processes are ready to run
   - Load init program into current PCB
 
-The Yalnix kernel prioritizes fairness and efficiency. The system implements round-robin scheduling, allocating CPU time slices evenly across all active processes. Each process is granted a slice of execution time, with the scheduler swiftly transitioning between tasks to maintain responsiveness and optimize throughput.
+The Yalnix kernel prioritizes fairness and efficiency. The system implements round-robin scheduling, allocating CPU time slices evenly across all active processes. Each process is granted a slice of execution time, with the scheduler swiftly transitioning between tasks to maintain responsiveness and optimize throughput. Round robin scheduling is handled by ```ScheduleNextProcess```. Note that this function only moves the outgoing process's PCB to the appropriate data structure (ready queue, blocked processes, etc.) and performs the kernel context swtich. The calling process is responsible for copying the user context.
 
+### Traps: [Source Code](./src/traps.c) and [Header File](./src/traps.h)
 
+There is a trap for each type of syscall exposed to the user, as well as for illegal behavior such as illegal memory touching or a math error. Each traps invokes the appropriate syscall handler if necessary and then copies the user context before returning to the user. In the case where a process does something dangerous (e.g. attempt to write to kernel heap or dereference null pointer), the trap will abort that process. See the header file for more details on each trap.
 
-### Traps
+### [Syscalls](./src/syscall_handlers/)
 
-### Init and Idle
+The syscall handlers are invoked when a user process traps down to the kernel. The header files for these syscall handlers contain details on how they behave.
 
-### Tests
+### [Testing](./tests/)
+
+We ran all tests in this testing directory. To try a test called "my_test," run ```./yalnix -x tests/my_test```. Our tests look at the following scenarios:
+
+- Fork + Exec
+- Fork + Wait
+- Fork bombing
+- Massive user heap
+- Pipe buffer overflow
+- Null pointer dereferencing 
 
 ### [User Programs](./src/programs/)
 
